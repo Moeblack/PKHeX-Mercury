@@ -39,8 +39,13 @@
 | 25 | fix/mercury-issue-05-pack-runtime | 717ddc47c | 145174864 | feat(mercury): read independent sprite pools from local data packs |
 | 26 | fix/mercury-issue-05-pack-runtime | 4aff0327c4868f35ea2053f69b99ff330746b034 | bdfb6d2cf | feat(mercury): load portable pack resources without ROM evidence promotion |
 | 27 | fix/mercury-issue-05-pack-runtime | d7702cbac5f3cb25376ac158aa0108f12dc6dde3 | 6f0a22a95 | feat(mercury): install local default packs with backup rollback |
+| 28 | fix/mercury-issue-06-shared-learnset | 786732724a7c47828df68b31e237023032677aaa | ec1836d90 | Cache shared native learnsets for Mercury species snapshots |
 
-集成分支 pick HEAD（本次记录时）：`6f0a22a95`（其上为记录文档提交）。二十七次 cherry-pick 均已落地：冲突发生于第 7、15、23、26 次并按规则解决；其余无冲突或仅语言文件纯新增自动合并。
+集成分支 pick HEAD（本次记录时）：`2a2fa246f9`（ec1836d90 之上为界面同步提交 2a2fa246f9）。二十八次 cherry-pick 均已落地：冲突发生于第 7、15、23、26 次并按规则解决；其余无冲突或仅语言文件纯新增自动合并。
+
+第 28 次合并后接口同步（单独提交 `2a2fa246f9`）：提交把字段改为 `IReadOnlyList<MercurySpecies> _species`，但主构造函数第 3 参仍为 `List<MercurySpecies>`，与 `LoadPack` 传入的只读快照不兼容（CS1503）。按 Main 批准将其同步为 `IReadOnlyList<MercurySpecies>`，保留既有 `Array.AsReadOnly(species.ToArray())` 快照，不在 `LoadPack` 额外 `ToList` 复制；属接口同步，无行为变化。
+
+验证：solution 构建 0 警告 0 错误；`PKHeX.Core.Tests.Mercury.MercurySharedLearnsetTests` 过滤运行 **13/13 通过、0 跳过**（`MERCURY_TEST_ROM` 设为已知 v1.1）；隔离 Runtime 联动重跑 **68/68**（原 65 + 新增 3 条 pack 学习表缓存非空/重复查询同实例/来源 gate 仍 Unknown）。Issue 6 仍为部分实现，学习表缓存复用不构成“完整获取合法性”。
 
 第 26 次冲突解决（Main 方案）：`GetLocationIdentifiers(string language = "zh")` 保留 language 参数，先取 `MercuryIdentifierCatalog.CreateLocations(...)`（保留 EvidenceNote/ObservedGameReadValue），`_pack` 非空时按 `location.Id` 覆写 `State`/`Name`；前置已核实 `MercuryDataPackValidator.RequireIds(locations, 256)` 要求 0..255 有序唯一，下标安全。
 
