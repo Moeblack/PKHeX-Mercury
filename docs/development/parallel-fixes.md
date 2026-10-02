@@ -75,6 +75,15 @@ Issue 11 本次只完成帧/页 API：`MercurySpriteSelection(FrameIndex, Palett
 - 集成 Issue 1 UI 两次提交后构建：**已成功生成，0 警告，0 错误**（约 6.97 秒）。构建日志保存在本机 `artifacts/integration-build-issue1ui.log`。
 - 集成 Issue 5 提交后构建（覆盖 Issue 5 合并）：**已成功生成，0 警告，0 错误**（约 7.13 秒）。构建日志保存在本机 `artifacts/integration-build-issue5.log`。
 
+## Issue 3（729 号道具图像）：阻塞结论
+
+已核对用户两个真实 ROM 与真实消费者（含跳板校正）及公开 HOME，结论一致：
+
+- 两个 ROM 的 729 表项相同：tile 指向 `09100840`、palette 指向 `09100930`，两者都落在音频 sample、首字节 `B6`；真实送 BIOS 前没有替换。
+- 公开 HOME 的 `itemIcons` 749 项中唯一缺键为 729，未猜测图片 URL。
+
+因此：现有输入无法恢复有效图像，Issue 3 标记为**阻塞**（非“已修复”），等待原作者素材或有效资源定位依据。名称与数量仍可编辑，保留条目，不加占位图、不借用 730 图。详细证据存于本机 `artifacts/`（公开文档不含本机路径）。不再反复调查同一坏表路径。
+
 ## 事实补记（Issue 5/9，未完成）
 
 - Issue 9：用户已提供实际 v1.0 ROM（详见本机记录），读取与版本布局对照进行中；不以放宽哈希代替真实输入。
