@@ -18,7 +18,7 @@
 | 4 | fix/mercury-issue-07-identifiers | ff7d6457d20107a5f163bb6cb2c0c0eff9494caa | 674597e56 | Preserve Mercury identifier evidence and unknown numeric values |
 | 5 | fix/mercury-issue-02-11-forms | 72c61eaff | 4d1ce1cc5 | Expose explicit Mercury sprite frame and palette-page selection |
 | 6 | fix/mercury-issue-07-identifiers | 772f737113e806b20c64751ace267c7e9215e44d（parent ff7d6457） | 251bfcc1e | Fix Mercury numeric-only strings factory empty ability slot |
-| 7 | mercury（Issue 1 核心单独提交，UI 未完成） | 3cb8d17d06bf688638d8d669a22b8c08df2a9d9f | 516bf4ee8 | Fix Mercury Unown forms and PID constraint preservation |
+| 7 | mercury（Issue 1 核心单独提交） | 3cb8d17d06bf688638d8d669a22b8c08df2a9d9f | 516bf4ee8 | Fix Mercury Unown forms and PID constraint preservation |
 | 8 | fix/mercury-issue-08-type | 203c63ee87e73cca6e1e35d84af03a5deae7fcdd | ab442dd1a | Add Mercury type override field and native editor control |
 | 9 | fix/mercury-issue-08-type | 0cfb69c40122b7a2ed4b9cbae06afcb38f8991ea | 3f9044f12 | Preserve unknown boxed Mercury type bits through the PKM bridge |
 | 10 | mercury（Issue 1 UI） | d6129eb97c4d0f0bccb58ee2ee7f0d1c2c5b9e0f | 727e59ca7 | Synchronize Mercury Unown PID fields before native preview |
@@ -30,20 +30,23 @@
 | 16 | fix/mercury-issue-06-legality | dc39b75d6 | 8cadd55be | Add Mercury encounter evidence parsing and unknown candidate matching |
 | 17 | fix/mercury-issue-06-legality | aea37dcbd | 6053ea852 | Wire Mercury encounter evidence import into native legality reports |
 | 18 | fix/mercury-issue-11-forms | 2f91811ba | 11d4a5187 | Allow explicit Mercury runtime resource selection in sprite preview |
-| 19 | fix/mercury-issue-09-host | d6ab8daf99e21bec6ba9fd9dec5a4aa3e0c5180d | 29e7777f3 | Authorize Mercury host editing and checks by verified ROM version |
-| 20 | fix/mercury-issue-07-identifiers | 216f979d27b05561f31c96aacee1c3c005e88272 | a3fd4484c | Expose Mercury identifier observations without rewriting stored IDs |
-| 21 | fix/mercury-issue-05-pack-runtime | 10dbc4444 | fc6c86173 | feat(mercury): export verified local data packs without full ROM |
-| 22 | fix/mercury-issue-05-pack-runtime | 717ddc47c | 145174864 | feat(mercury): read independent sprite pools from local data packs |
-| 23 | fix/mercury-issue-05-pack-runtime | 4aff0327c4868f35ea2053f69b99ff330746b034 | bdfb6d2cf | feat(mercury): load portable pack resources without ROM evidence promotion |
-| 24 | fix/mercury-issue-05-pack-runtime | d7702cbac5f3cb25376ac158aa0108f12dc6dde3 | 6f0a22a95 | feat(mercury): install local default packs with backup rollback |
+| 19 | fix/mercury-issue-09-versions | 7b73a9e4f | 8c8a84dcc | Recognize exact Mercury ROM builds and resolve growth tables from consumer literal |
+| 20 | fix/mercury-issue-09-versions | db67d82e7 | fd311a7ec | Load exact Mercury 1.0 data and bind profiles to their declared ROM version |
+| 21 | fix/mercury-issue-02-mechanisms | 62201829faa025e549ed7b1278ee386382509175 | be7a9e981 | Expose proven conditional Mercury species transitions without form setters |
+| 22 | fix/mercury-issue-09-host | d6ab8daf99e21bec6ba9fd9dec5a4aa3e0c5180d | 29e7777f3 | Authorize Mercury host editing and checks by verified ROM version |
+| 23 | fix/mercury-issue-07-identifiers | 216f979d27b05561f31c96aacee1c3c005e88272 | a3fd4484c | Expose Mercury identifier observations without rewriting stored IDs |
+| 24 | fix/mercury-issue-05-pack-runtime | 10dbc4444 | fc6c86173 | feat(mercury): export verified local data packs without full ROM |
+| 25 | fix/mercury-issue-05-pack-runtime | 717ddc47c | 145174864 | feat(mercury): read independent sprite pools from local data packs |
+| 26 | fix/mercury-issue-05-pack-runtime | 4aff0327c4868f35ea2053f69b99ff330746b034 | bdfb6d2cf | feat(mercury): load portable pack resources without ROM evidence promotion |
+| 27 | fix/mercury-issue-05-pack-runtime | d7702cbac5f3cb25376ac158aa0108f12dc6dde3 | 6f0a22a95 | feat(mercury): install local default packs with backup rollback |
 
-集成分支 HEAD（本次记录时）：`6f0a22a95`。二十四次 cherry-pick 均已落地（第 7、15、20、23 次冲突按规则解决；第 21/22/24 无冲突或仅语言纯新增自动合并）。
+集成分支 pick HEAD（本次记录时）：`6f0a22a95`（其上为记录文档提交）。二十七次 cherry-pick 均已落地：冲突发生于第 7、15、23、26 次并按规则解决；其余无冲突或仅语言文件纯新增自动合并。
 
-第 23 次冲突解决（Main 方案）：`GetLocationIdentifiers(string language = "zh")` 保留 language 参数，先取 `MercuryIdentifierCatalog.CreateLocations(...)`（保留 EvidenceNote/ObservedGameReadValue），`_pack` 非空时按 `location.Id` 覆写 `State`/`Name`；前置已核实 `MercuryDataPackValidator.RequireIds(locations, 256)` 要求 0..255 有序唯一，下标安全。
+第 26 次冲突解决（Main 方案）：`GetLocationIdentifiers(string language = "zh")` 保留 language 参数，先取 `MercuryIdentifierCatalog.CreateLocations(...)`（保留 EvidenceNote/ObservedGameReadValue），`_pack` 非空时按 `location.Id` 覆写 `State`/`Name`；前置已核实 `MercuryDataPackValidator.RequireIds(locations, 256)` 要求 0..255 有序唯一，下标安全。
 
-Pack runtime/安装验证（隔离副本重定向到本集成分支构建）：Runtime 47/47、Installer 20/20 通过；0 网络、不触碰用户 LocalAppData、不改动源测试与用户数据。本机日志与隔离方式见本机集成报告。
+Pack runtime/安装验证（隔离副本重定向到本集成分支构建）：Runtime **65/65**（原 47 + 新增 18 条 5E/FD/FE EvidenceNote zh/en 断言）、Installer **20/20** 通过；0 网络、不触碰用户 LocalAppData、不改动源测试与用户数据。本机日志与隔离方式见本机集成报告。
 
-第 20 次冲突解决：`PKMEditor.SetPKMFormatMode` 中 `ConfigureMercuryTypes(pk)`（Issue 8）与 `SetMercuryIdentifierTipFormat(pk)`（Issue 7）为相互独立的调用行，保留两者、不删任一侧；`InitializeMercuryIdentifierTips()`（构造）与 `RefreshMercuryIdentifierTips()`（`LoadFieldsFromPKM` 完成时）自动合入，未替换既有事件；未定义永久 Form setter。
+第 23 次冲突解决：`PKMEditor.SetPKMFormatMode` 中 `ConfigureMercuryTypes(pk)`（Issue 8）与 `SetMercuryIdentifierTipFormat(pk)`（Issue 7）为相互独立的调用行，保留两者、不删任一侧；`InitializeMercuryIdentifierTips()`（构造）与 `RefreshMercuryIdentifierTips()`（`LoadFieldsFromPKM` 完成时）自动合入，未替换既有事件；未定义永久 Form setter。
 
 Issue 9 已支持精确 v1.0/v1.1 并按各版本实际数据读取（160 限定 checks + 6 语言 checks 通过）；但存档布局本身无法唯一辨版本，1.1 遭遇证据不套 1.0，未游戏实测。Issue 7 已证来源备注（读 3 写 4）、球 27 运行态、5E 动态名与 ToolTip，无损保存；不标未知机制全部闭合。均未发布。
 
