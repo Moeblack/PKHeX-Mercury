@@ -32,8 +32,16 @@
 | 18 | fix/mercury-issue-11-forms | 2f91811ba | 11d4a5187 | Allow explicit Mercury runtime resource selection in sprite preview |
 | 19 | fix/mercury-issue-09-host | d6ab8daf99e21bec6ba9fd9dec5a4aa3e0c5180d | 29e7777f3 | Authorize Mercury host editing and checks by verified ROM version |
 | 20 | fix/mercury-issue-07-identifiers | 216f979d27b05561f31c96aacee1c3c005e88272 | a3fd4484c | Expose Mercury identifier observations without rewriting stored IDs |
+| 21 | fix/mercury-issue-05-pack-runtime | 10dbc4444 | fc6c86173 | feat(mercury): export verified local data packs without full ROM |
+| 22 | fix/mercury-issue-05-pack-runtime | 717ddc47c | 145174864 | feat(mercury): read independent sprite pools from local data packs |
+| 23 | fix/mercury-issue-05-pack-runtime | 4aff0327c4868f35ea2053f69b99ff330746b034 | bdfb6d2cf | feat(mercury): load portable pack resources without ROM evidence promotion |
+| 24 | fix/mercury-issue-05-pack-runtime | d7702cbac5f3cb25376ac158aa0108f12dc6dde3 | 6f0a22a95 | feat(mercury): install local default packs with backup rollback |
 
-集成分支 HEAD（本次记录时）：`a3fd4484c`。二十次 cherry-pick 均已落地（第 7、15、20 次冲突按规则解决）。
+集成分支 HEAD（本次记录时）：`6f0a22a95`。二十四次 cherry-pick 均已落地（第 7、15、20、23 次冲突按规则解决；第 21/22/24 无冲突或仅语言纯新增自动合并）。
+
+第 23 次冲突解决（Main 方案）：`GetLocationIdentifiers(string language = "zh")` 保留 language 参数，先取 `MercuryIdentifierCatalog.CreateLocations(...)`（保留 EvidenceNote/ObservedGameReadValue），`_pack` 非空时按 `location.Id` 覆写 `State`/`Name`；前置已核实 `MercuryDataPackValidator.RequireIds(locations, 256)` 要求 0..255 有序唯一，下标安全。
+
+Pack runtime/安装验证（隔离副本重定向到本集成分支构建）：Runtime 47/47、Installer 20/20 通过；0 网络、不触碰用户 LocalAppData、不改动源测试与用户数据。本机日志与隔离方式见本机集成报告。
 
 第 20 次冲突解决：`PKMEditor.SetPKMFormatMode` 中 `ConfigureMercuryTypes(pk)`（Issue 8）与 `SetMercuryIdentifierTipFormat(pk)`（Issue 7）为相互独立的调用行，保留两者、不删任一侧；`InitializeMercuryIdentifierTips()`（构造）与 `RefreshMercuryIdentifierTips()`（`LoadFieldsFromPKM` 完成时）自动合入，未替换既有事件；未定义永久 Form setter。
 
@@ -95,6 +103,7 @@ Issue 11 本次只完成帧/页 API：`MercurySpriteSelection(FrameIndex, Palett
 - 集成 Issue 2 + Issue 11 提交后构建（覆盖前次 Issue 2 与本次 Issue 11）：**已成功生成，0 警告，0 错误**（约 7.35 秒）。构建日志保存在本机 `artifacts/integration-build-issue2-11.log`。
 - 集成 Issue 6 两次 + Issue 11 运行态提交后构建：**已成功生成，0 警告，0 错误**（约 10.84 秒）。构建日志保存在本机 `artifacts/integration-build-issue6-11b.log`。
 - 集成 host gate 与 Issue 7 identifier 提交后构建：**已成功生成，0 警告，0 错误**（约 7.07 秒）。构建日志保存在本机 `artifacts/integration-build-gate-ident.log`。
+- 集成 pack 四提交后构建：**已成功生成，0 警告，0 错误**（约 7.59 秒）。构建日志保存在本机 `artifacts/integration-build-pack4.log`。
 
 ## Issue 3（729 号道具图像）：阻塞结论
 
