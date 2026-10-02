@@ -2,7 +2,6 @@ using System;
 using System.Drawing;
 using System.Drawing.Imaging;
 using System.IO;
-using System.Net.Http;
 using System.Threading.Tasks;
 using System.Runtime.CompilerServices;
 using System.Windows.Forms;
@@ -120,7 +119,7 @@ internal static class MercuryIntegration
     public static void AddMenuControls(ToolStripMenuItem tools)
     {
         var root = new ToolStripMenuItem { Name = "Menu_Mercury", Text = "Mercury" };
-        AddItem(root, "Menu_MercurySetup", "Mercury ROM/profile setup...", (s, _) => ConfigureFromRom(Owner(s)));
+        AddItem(root, "Menu_MercurySetup", "Mercury ROM/profile setup...", async (s, _) => await ConfigureFromRom(Owner(s), s as ToolStripMenuItem));
         AddItem(root, "Menu_MercuryImportCharmap", "Import name charmap (JSON)...", (s, _) => ImportCharmap(Owner(s)));
         AddItem(root, "Menu_MercuryDownloadCharmap", "Download public HOME charmap...", async (s, _) => await DownloadCharmapAsync(Owner(s)));
         AddItem(root, "Menu_MercuryImportResearch", "Import research directory...", (s, _) => ImportResearch(Owner(s)));
@@ -145,42 +144,62 @@ internal static class MercuryIntegration
     /// <summary>
     /// Prompts for the exact Mercury ROM and stores a verified local profile.
     /// </summary>
-    public static void ConfigureFromRom(IWin32Window? owner)
+    public static async Task ConfigureFromRom(IWin32Window? owner, ToolStripMenuItem? item = null)
     {
         using var ofd = new OpenFileDialog
         {
             Filter = L("RomFilter", "GBA ROM (*.gba)|*.gba|All files (*.*)|*.*"),
-            Title = L("SelectRom", "Select the Mercury 1.1 ROM"),
+            Title = L("SetupSelectRom", "Select the Mercury ROM (downloads the public HOME charmap if needed)"),
         };
         if (ofd.ShowDialog(owner) != DialogResult.OK)
             return;
 
-        byte[] rom;
+        using var progress = new Form
+        {
+            Text = L("SetupWorking", "Mercury setup in progress"),
+            FormBorderStyle = FormBorderStyle.FixedDialog,
+            StartPosition = FormStartPosition.CenterParent,
+            ClientSize = new Size(480, 110),
+            MaximizeBox = false,
+            MinimizeBox = false,
+            ControlBox = false,
+            ShowInTaskbar = false,
+        };
+        progress.Controls.Add(new Label
+        {
+            Dock = DockStyle.Fill,
+            Padding = new Padding(12),
+            Text = L("SetupWorkingDetail", "Reading your ROM and preparing the profile. If no imported charmap is available, the public HOME charmap is downloaded (30-second timeout)."),
+        });
+        progress.Controls.Add(new ProgressBar { Dock = DockStyle.Bottom, Style = ProgressBarStyle.Marquee });
+        MercuryGameData? data;
+        if (item is not null)
+            item.Enabled = false;
         try
         {
-            rom = File.ReadAllBytes(ofd.FileName);
+            progress.Show(owner);
+            data = await MercuryDataSetup.ConfigureFromRomAsync(ofd.FileName, ExistingCodec(), ProfileDirectory);
         }
         catch (Exception e)
         {
-            WinFormsUtil.Error(L("RomReadFail", "无法读取所选 ROM。"), e);
+            progress.Hide();
+            WinFormsUtil.Error(L("SetupFailed", "Setup failed. See the error below. For charmap download failures, use Import name charmap, then select your ROM again. The previously active data has not been replaced."), e);
             return;
         }
-
-        try
+        finally
         {
-            var data = MercuryGameData.FromRom(rom, ExistingCodec());
-            data.SaveProfile(ProfileDirectory);
-            Publish(data);
-            WinFormsUtil.Alert(L("Configured", "Mercury 配置已保存。"), $"种类 {data.Species.Count} / 招式 {data.Moves.Count} / 道具 {data.Items.Count}");
+            progress.Close();
+            if (item is not null)
+                item.Enabled = true;
         }
-        catch (Exception e)
-        {
-            WinFormsUtil.Error(L("RomInvalid", "ROM 校验或解析失败：该文件不是本版本的水银 ROM。"), e);
-        }
+        if (data is null)
+            return;
+        Publish(data);
+        WinFormsUtil.Alert(L("SetupDone", "ROM profile and name charmap saved."), $"种类 {data.Species.Count} / 招式 {data.Moves.Count} / 道具 {data.Items.Count}");
     }
 
     /// <summary>Backwards-compatible alias used by documentation/tooling.</summary>
-    public static void ConfigureProfile(IWin32Window? owner) => ConfigureFromRom(owner);
+    public static Task ConfigureProfile(IWin32Window? owner) => ConfigureFromRom(owner);
 
     /// <summary>
     /// Imports a name charmap JSON and re-decodes the current data with it (best effort: keeps numeric rules).
@@ -188,12 +207,6 @@ internal static class MercuryIntegration
     public static void ImportCharmap(IWin32Window? owner)
     {
         var baseData = _data ?? TryLoadDefaultProfileData();
-        if (baseData is null)
-        {
-            WinFormsUtil.Error(L("NeedRom", "请先设置水银 ROM/profile，然后再导入字符映射。"));
-            return;
-        }
-
         using var ofd = new OpenFileDialog
         {
             Filter = L("CharmapFilter", "Charmap/game_data (*.json;*.js;*.html)|*.json;*.js;*.html|All files (*.*)|*.*"),
@@ -205,9 +218,14 @@ internal static class MercuryIntegration
         try
         {
             var text = File.ReadAllText(ofd.FileName);
-            var codec = MercuryTextCodec.FromCharmapJson(text);
-            var updated = baseData.WithTextCodec(codec);
+            var codec = MercuryDataSetup.ParseCharmap(text);
+            var updated = baseData?.WithTextCodec(codec);
             CacheCharmap(text);
+            if (updated is null)
+            {
+                WinFormsUtil.Alert(L("CharmapSaved", "Name charmap saved. Select your ROM to complete setup."));
+                return;
+            }
             Publish(updated);
             WinFormsUtil.Alert(L("CharmapImported", "字符映射已导入。"), $"单字节 {codec.SingleByteCount} / 双字节 {codec.DoubleByteCount}");
         }
@@ -217,7 +235,7 @@ internal static class MercuryIntegration
         }
     }
 
-    private const string HomeCharmapUrl = "https://sum-light.github.io/azoth-wiki/home/app.html";
+    private const string HomeCharmapUrl = MercuryDataSetup.HomeCharmapUrl;
 
     /// <summary>
     /// Downloads the user-visible public HOME charmap page and imports its embedded payload through the same
@@ -241,9 +259,8 @@ internal static class MercuryIntegration
 
         try
         {
-            using var client = new HttpClient { Timeout = TimeSpan.FromSeconds(30) };
-            var text = await client.GetStringAsync(HomeCharmapUrl);
-            var codec = MercuryTextCodec.FromCharmapJson(text);
+            using var client = MercuryDataSetup.CreateClient();
+            var (text, codec) = await MercuryDataSetup.DownloadCharmapAsync(client);
             var updated = baseData.WithTextCodec(codec);
             CacheCharmap(text);
             Publish(updated);
@@ -255,18 +272,7 @@ internal static class MercuryIntegration
         }
     }
 
-    private static void CacheCharmap(string text)
-    {
-        try
-        {
-            Directory.CreateDirectory(ProfileDirectory);
-            File.WriteAllText(CharmapPath, text);
-        }
-        catch
-        {
-            // Cache failure does not affect this session.
-        }
-    }
+    private static void CacheCharmap(string text) => MercuryDataSetup.CacheCharmap(ProfileDirectory, text);
 
     /// <summary>
     /// Imports an existing ROM-native research directory through the Core API.
@@ -329,7 +335,7 @@ internal static class MercuryIntegration
         try
         {
             if (File.Exists(CharmapPath))
-                return MercuryTextCodec.FromCharmapJson(File.ReadAllText(CharmapPath));
+                return MercuryDataSetup.ParseCharmap(File.ReadAllText(CharmapPath));
         }
         catch
         {
@@ -338,7 +344,8 @@ internal static class MercuryIntegration
 
         try
         {
-            return Directory.Exists(ProfileDirectory) ? MercuryGameData.LoadProfile(ProfileDirectory).Text : null;
+            var codec = (_data ?? TryLoadDefaultProfileData())?.Text;
+            return codec is { IsImported: true } ? codec : null;
         }
         catch
         {
