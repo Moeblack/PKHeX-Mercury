@@ -153,7 +153,7 @@ public sealed class MercuryTextCodec
     /// </summary>
     public string Decode(ReadOnlySpan<byte> bytes)
     {
-        var builder = new StringBuilder(bytes.Length);
+        var builder = new StringBuilder(Math.Min(bytes.Length, 64));
         for (int i = 0; i < bytes.Length; i++)
         {
             byte b = bytes[i];

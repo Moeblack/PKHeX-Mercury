@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 using System.Windows.Forms;
 using PKHeX.Core;
 using PKHeX.Drawing.PokeSprite;
+using PKHeX.Mercury.Core;
 
 namespace PKHeX.WinForms.Controls;
 
@@ -312,6 +313,18 @@ public sealed class SlotChangeManager(SAVEditor se) : IDisposable
         {
             Drag.RequestDD(this, e); // pass through
             return true; // treat as handled
+        }
+
+        if (sav is MercurySaveFile && temp is not MercuryPKM)
+        {
+            WinFormsUtil.Error("水银存档只能接收水银格式的宝可梦数据。");
+            return false;
+        }
+
+        if (temp is MercuryPKM && sav is not MercurySaveFile)
+        {
+            WinFormsUtil.Error("水银宝可梦只能放入水银存档。");
+            return false;
         }
 
         var pk = EntityConverter.ConvertToType(temp, sav.PKMType, out var result);

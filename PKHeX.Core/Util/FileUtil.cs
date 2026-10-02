@@ -246,10 +246,25 @@ public static class FileUtil
             pk = null;
             return false;
         }
+
+        // Format-specific entity files (e.g. hack formats) that the built-in EntityFormat does not know.
+        // The callback must only claim its own explicit extension/length and return null otherwise.
+        if (CustomEntityReader?.Invoke(data, ext.ToString(), sav) is { } custom)
+        {
+            pk = custom;
+            return true;
+        }
+
         var format = EntityFileExtension.GetContextFromExtension(ext, sav?.Context ?? EntityContext.Gen6);
         pk = EntityFormat.GetFromBytes(data, prefer: format);
         return pk is not null;
     }
+
+    /// <summary>
+    /// Optional reader for format-specific entity files that the built-in <see cref="EntityFormat"/> cannot parse.
+    /// </summary>
+    /// <remarks>Set by the UI layer. Must only claim an explicit format extension and otherwise return null.</remarks>
+    public static Func<Memory<byte>, string, ITrainerInfo?, PKM?>? CustomEntityReader { get; set; }
 
     /// <summary>
     /// Tries to get a <see cref="IEnumerable{T}"/> object from the input parameters.

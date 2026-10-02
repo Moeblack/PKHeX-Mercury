@@ -74,7 +74,7 @@ public sealed class StartupSettings : IStartupSettings
 
             field = value;
         }
-    } = WinFormsUtil.GetCultureLanguage();
+    } = "zh-Hans"; // Default display language for this Mercury build; users can switch via the native language menu.
 
     [Browsable(false)]
     public GameVersion DefaultSaveVersion

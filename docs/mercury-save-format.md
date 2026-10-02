@@ -197,6 +197,24 @@ data/UI layer from the species ability table; the mon must not claim it returns 
   checksummed payload; `SetTrainer` patches only those 4 bytes and keeps the rest of the parasite data.
   `MercuryTrainer.Coins` is a `uint`.
 
+### Inventory (2026-10-02)
+
+- The native UI crash was caused by the adapter inheriting `SaveFile.Inventory` (an empty bag), while `SAV_Inventory` accesses `Pouches[0].Items[0]`. The adapter now supplies `MercuryPlayerBag`; the native inventory dialog and its operation flow are retained.
+- ROM `08099E44` branches to `09D3E49C`, which copies 40 bytes from `09DD7240` into `0203988C`. Five pointer/capacity pairs: Items `0203BB20/450`, KeyItems `0203C228/75`, Balls `0203C354/50`, TMHMs `0203C41C/128`, Berries `0203C61C/75`. Records are four bytes: u16 item and u16 count. The active getter `08099DA0` is `ldrh; bx lr`, not the unreachable old XOR sequence after it.
+- `09D56DFC` loads section 13 `[450,FF0)` into `0203B498`; `09D56DC0..09D56DD0` loads sector 30 `[0,FF0)` into `0203C038`. Therefore the 3112 bag bytes map to active section 13 `[AD8,FF0)` followed by sector 30 `[0,710)`. Do not substitute retail SaveBlock1 bag offsets.
+- PC items use SaveBlock1+298, thirty four-byte records (`0809A304/0809A33C`); their edits require section 1 checksum updates. The bag tail edits do not change payload checksums. All paths write only changed bytes and preserve unrelated tails/footers and the inactive slot.
+- Unified native inventory buffer: Items offset 0, KeyItems 1800, Balls 2100, TMHMs 2300, Berries 2812, PC 3112; length 3232. Quantity cap 999 from `0809A04A` / `0809A0D8`; no retail HM index restriction is reused. Item categories come from this ROM's pocket field.
+- Icons: `08098974` reads `[0809899C]=093C8100`, entry `item*8`, tiles/+4 palette. `0809872C` copies three rows of three 8x8 tiles into a four-tile-wide staging buffer: visible source is 24x24, 4bpp. Native dialog now reads these resources instead of retail item conversion. Entry 729 remains undecoded by this direct path; no claim that the item lacks an icon.
+- Main verification: real save loaded with 64/11/6/15/10 occupied bag slots and zero PC entries. No-change inventory roundtrip is byte-identical; first/last slots of all six pouches roundtrip in memory, changing only intended bytes plus PC checksum. Source file was unchanged. The native inventory dialog opened and displayed item names/counts/icons; it was cancelled without saving.
+
+#### Item 729 follow-up
+
+Main traced the bag cursor path `081085EE -> 0809A798` (raw u16 item id from the selected pouch), `081085FE -> 080988E8 -> 08098758 -> 08098974`. The examined path does not remap the id. Graphics go via `0800EBB4 -> 081E3B70 -> BIOS SWI 11` (LZ77), with no custom decoder in that chain.
+
+The entry at `093C97C8` points to `09100840` and `09100930`. Raw prefixes are respectively `B6 C8 D9 EC 04 1A 34 4C` and `B6 A9 A2 9C A2 AE BD CE`; neither has the required LZ77 type byte 10. Treating the remaining three bytes as lengths would request 15522248 / 10265257 bytes, not a 288-byte icon / 32-byte palette. These are source-resource inconsistencies on the confirmed path, not a valid alternative encoding established by evidence.
+
+No correct replacement resource or alternate consumer has been established. The editor preserves item 729 and its quantity, does not substitute a retail image or change the ROM, and now gives the native image cell an explicit undecodable-ROM-resource tooltip. Restoring its actual image remains open; this diagnostic is not claimed as image recovery.
+
 ## 5. Known limitations / open items
 
 - Boxes 19-21 are ROM-instruction proven but have no populated sample; final validation uses

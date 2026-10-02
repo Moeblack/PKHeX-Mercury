@@ -28,8 +28,13 @@ public sealed class FilteredGameDataSource
             Items = [];
         }
 
-        var gamelist = GameUtil.GetVersionsWithinRange(sav, sav.Context).ToList();
-        Games = Source.VersionDataSource.Where(g => gamelist.Contains((GameVersion)g.Value) || g.Value == 0).ToList();
+        if (Source.Strings.IsMercury)
+            Games = Source.VersionDataSource.Where(g => g.Value <= (int)sav.MaxGameID).ToList();
+        else
+        {
+            var gamelist = GameUtil.GetVersionsWithinRange(sav, sav.Context).ToList();
+            Games = Source.VersionDataSource.Where(g => gamelist.Contains((GameVersion)g.Value) || g.Value == 0).ToList();
+        }
 
         Languages = Source.LanguageDataSource(sav.Generation, sav.Context);
         Balls = Source.BallDataSource.Where(b => b.Value <= sav.MaxBallID).ToList();
@@ -77,6 +82,12 @@ public sealed class FilteredGameDataSource
     // return a new list every time
     private static List<ComboItem> GetFilteredMoves(EntityContext context, GameDataSource source, bool HaX, ushort max)
     {
+        if (source.Strings.IsMercury)
+        {
+            // Mercury move ids are internal; the retail dummied-move hash sets index national ids.
+            return source.LegalMoveDataSource.Where(m => m.Value <= max).ToList();
+        }
+
         if (HaX)
             return source.HaXMoveDataSource.Where(m => m.Value <= max).ToList();
 

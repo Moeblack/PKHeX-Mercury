@@ -971,6 +971,11 @@ public partial class SAVEditor : UserControl, ISlotViewer<PictureBox>, ISaveFile
 
     private void ClickVerifyStoredEntities(object sender, EventArgs e)
     {
+        if (!SAV.BlankPKM.SupportsRetailLegality)
+        {
+            MercuryLegality.ShowPaused(this);
+            return;
+        }
         var bulk = new Core.Bulk.BulkAnalysis(SAV, Main.Settings.Legality.Bulk);
         if (bulk.Valid)
         {

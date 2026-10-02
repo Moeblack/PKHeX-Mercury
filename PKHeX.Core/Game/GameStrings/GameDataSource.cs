@@ -49,7 +49,7 @@ public sealed class GameDataSource
     public GameDataSource(GameStrings s)
     {
         Strings = s;
-        BallDataSource = GetBalls(s.itemlist);
+        BallDataSource = s.IsMercury ? GetMercuryBalls(s.balllist) : GetBalls(s.itemlist);
         SpeciesDataSource = Util.GetCBList(s.specieslist);
         NatureDataSource = Util.GetCBList(s.natures);
         AbilityDataSource = Util.GetCBList(s.abilitylist);
@@ -59,13 +59,21 @@ public sealed class GameDataSource
 
         var moves = Util.GetCBList(s.movelist);
         HaXMoveDataSource = moves;
-        var legal = new List<ComboItem>(moves.Count);
-        foreach (var m in moves)
+        if (s.IsMercury)
         {
-            if (MoveInfo.IsMoveKnowable((ushort)m.Value))
-                legal.Add(m);
+            // Mercury move ids are internal; the retail "knowable move" filter uses national move tables.
+            LegalMoveDataSource = moves;
         }
-        LegalMoveDataSource = legal;
+        else
+        {
+            var legal = new List<ComboItem>(moves.Count);
+            foreach (var m in moves)
+            {
+                if (MoveInfo.IsMoveKnowable((ushort)m.Value))
+                    legal.Add(m);
+            }
+            LegalMoveDataSource = legal;
+        }
 
         var games = GetVersionList(s);
         VersionDataSource = games;
@@ -73,7 +81,8 @@ public sealed class GameDataSource
         Met = new MetDataSource(s);
 
         Empty = new ComboItem(s.itemlist[0], 0);
-        games[^1] = Empty;
+        if (!s.IsMercury)
+            games[^1] = Empty;
     }
 
     /// <summary> Strings that this object's lists were generated with. </summary>
@@ -128,6 +137,17 @@ public sealed class GameDataSource
 
     private static ComboItem[] GetBalls(ReadOnlySpan<string> itemList) => Util.GetVariedCBListBall(itemList, BallStoredIndexes, BallItemIDs);
 
+    /// <summary>
+    /// Builds the Mercury ball list from the opaque full-byte value space (no retail ball/item mapping).
+    /// </summary>
+    private static ComboItem[] GetMercuryBalls(ReadOnlySpan<string> names)
+    {
+        var list = new ComboItem[names.Length];
+        for (int i = 0; i < names.Length; i++)
+            list[i] = new ComboItem(names[i], i);
+        return list;
+    }
+
     // Since Poké Ball (and Great Ball / Ultra Ball) are most common, any list should have them at the top. The rest can be sorted alphabetically.
     private static ReadOnlySpan<byte> BallStoredIndexes => [ 004, 003, 002, 001, 005, 006, 007, 008, 009, 010, 011, 012, 013, 014, 015, 016, 017, 018, 019, 020, 021, 022, 023, 024, 025, 026, 0027, 0028, 0029, 0030, 0031, 0032, 0033, 0034, 0035, 0036, 0037 ];
     private static ReadOnlySpan<ushort> BallItemIDs     => [ 004, 003, 002, 001, 005, 006, 007, 008, 009, 010, 011, 012, 013, 014, 015, 016, 492, 493, 494, 495, 496, 497, 498, 499, 576, 851, 1785, 1710, 1711, 1712, 1713, 1746, 1747, 1748, 1749, 1750, 1771 ];
@@ -135,6 +155,13 @@ public sealed class GameDataSource
     private static ComboItem[] GetVersionList(GameStrings s)
     {
         var list = s.gamelist;
+        if (s.IsMercury)
+        {
+            var result = new ComboItem[16];
+            for (int value = 0; value < result.Length; value++)
+                result[value] = new ComboItem(list[value], value);
+            return result;
+        }
         return Util.GetUnsortedCBList(list, OrderedVersionArray);
     }
 

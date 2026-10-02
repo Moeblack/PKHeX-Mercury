@@ -495,6 +495,12 @@ public static class SaveUtil
     {
         if (TryGetSaveFileCustom(data, out result, path))
             return true;
+        return TryGetSaveFileBuiltIn(data, out result, path);
+    }
+
+    /// <summary>Reads only built-in formats and wrappers, without recursively consulting custom readers.</summary>
+    public static bool TryGetSaveFileBuiltIn(Memory<byte> data, [NotNullWhen(true)] out SaveFile? result, string? path = null)
+    {
 
         result = GetSaveFileInternal(data);
         if (result is not null)

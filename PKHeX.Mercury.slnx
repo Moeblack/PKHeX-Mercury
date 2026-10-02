@@ -1,9 +1,8 @@
 <Solution>
   <Project Path="PKHeX.Core/PKHeX.Core.csproj" />
   <Project Path="PKHeX.Mercury.Core/PKHeX.Mercury.Core.csproj" />
-  <Project Path="PKHeX.Mercury/PKHeX.Mercury.csproj" />
-  <Folder Name="/Tests/">
-    <Project Path="Tests/PKHeX.Mercury.Tests/PKHeX.Mercury.Tests.csproj" />
-    <Project Path="Tests/PKHeX.Mercury.UITests/PKHeX.Mercury.UITests.csproj" />
-  </Folder>
+  <Project Path="PKHeX.Drawing/PKHeX.Drawing.csproj" />
+  <Project Path="PKHeX.Drawing.Misc/PKHeX.Drawing.Misc.csproj" />
+  <Project Path="PKHeX.Drawing.PokeSprite/PKHeX.Drawing.PokeSprite.csproj" />
+  <Project Path="PKHeX.WinForms/PKHeX.WinForms.csproj" />
 </Solution>

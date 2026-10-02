@@ -5,6 +5,7 @@ using PKHeX.Core;
 using PKHeX.Drawing;
 using PKHeX.Drawing.Misc;
 using PKHeX.Drawing.PokeSprite;
+using PKHeX.Mercury.Core;
 
 namespace PKHeX.WinForms.Controls;
 
@@ -458,16 +459,24 @@ public partial class StatEditor : UserControl
         else
         {
             var pk = Entity;
-            var la = new LegalityAnalysis(pk);
-            var enc = la.EncounterMatch;
-            if (enc is IFlawlessIVCount { FlawlessIVCount: not 0 } fc)
-                pk.SetRandomIVs(ivs, fc.FlawlessIVCount);
-            else if (enc is IFixedIVSet { IVs: { IsSpecified: true } iv })
-                pk.SetRandomIVs(ivs, iv);
-            else if (enc is IFlawlessIVCountConditional c && c.GetFlawlessIVCount(pk) is { Max: not 0 } x)
-                pk.SetRandomIVs(ivs, Util.Rand.Next(x.Min, x.Max + 1));
-            else
+            if (pk is MercuryPKM)
+            {
+                // No retail encounter template applies to Mercury internal ids; use the plain random roll.
                 pk.SetRandomIVs(ivs);
+            }
+            else
+            {
+                var la = new LegalityAnalysis(pk);
+                var enc = la.EncounterMatch;
+                if (enc is IFlawlessIVCount { FlawlessIVCount: not 0 } fc)
+                    pk.SetRandomIVs(ivs, fc.FlawlessIVCount);
+                else if (enc is IFixedIVSet { IVs: { IsSpecified: true } iv })
+                    pk.SetRandomIVs(ivs, iv);
+                else if (enc is IFlawlessIVCountConditional c && c.GetFlawlessIVCount(pk) is { Max: not 0 } x)
+                    pk.SetRandomIVs(ivs, Util.Rand.Next(x.Min, x.Max + 1));
+                else
+                    pk.SetRandomIVs(ivs);
+            }
         }
 
         LoadIVs(ivs);

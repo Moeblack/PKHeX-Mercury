@@ -71,6 +71,11 @@ public sealed class MercuryGameData
 
     public MercuryTextCodec Text => _text;
 
+    private MercuryPersonalTable? _personal;
+
+    /// <summary>Cached native personal table over <see cref="Species"/>; shared by PKM/SaveFile adapters.</summary>
+    public MercuryPersonalTable Personal => _personal ??= new MercuryPersonalTable(this);
+
     /// <summary>Ability name pool (300 entries when loaded, empty for numeric-only).</summary>
     public IReadOnlyList<string> AbilityNames => _abilityNames;
 
@@ -199,9 +204,25 @@ public sealed class MercuryGameData
             ? MercuryTextCodec.FromCharmapJson(JsonSerializer.Serialize(profile.Charmap))
             : MercuryTextCodec.Default();
 
+        byte[]? rom = null;
+        if (!string.IsNullOrWhiteSpace(profile.RomPath))
+        {
+            string candidate = Path.IsPathRooted(profile.RomPath)
+                ? profile.RomPath
+                : Path.Combine(directory, profile.RomPath);
+            rom = TryLoadVerifiedRom(candidate);
+        }
+
+        // A profile written before the personal-fact fields existed (version < 2) has them zeroed.
+        // Fill them from the verified ROM instead of persisting invented zero values.
+        bool legacyProfile = profile.Version < MercuryProfile.CurrentVersion;
+        MercurySpecies[]? romPersonal = rom is null ? null : ReadSpeciesPersonal(rom);
+
         var species = new List<MercurySpecies>(profile.Species.Count);
         foreach (MercuryProfile.ProfileSpecies entry in profile.Species)
         {
+            bool fill = legacyProfile && romPersonal is not null && (uint)entry.Id < (uint)romPersonal.Length;
+            MercurySpecies? rp = fill ? romPersonal![entry.Id] : null;
             species.Add(new MercurySpecies
             {
                 Id = entry.Id,
@@ -210,6 +231,16 @@ public sealed class MercuryGameData
                 GenderRatio = entry.GenderRatio,
                 GrowthRate = entry.GrowthRate,
                 BaseFriendship = entry.BaseFriendship,
+                Type1 = rp?.Type1 ?? entry.Type1,
+                Type2 = rp?.Type2 ?? entry.Type2,
+                EVYield = rp?.EVYield ?? entry.EVYield,
+                EggGroup1 = rp?.EggGroup1 ?? entry.EggGroup1,
+                EggGroup2 = rp?.EggGroup2 ?? entry.EggGroup2,
+                CatchRate = rp?.CatchRate ?? entry.CatchRate,
+                HatchCycles = rp?.HatchCycles ?? entry.HatchCycles,
+                BaseEXP = rp?.BaseEXP ?? entry.BaseEXP,
+                Color = rp?.Color ?? entry.Color,
+                EscapeRate = rp?.EscapeRate ?? entry.EscapeRate,
                 Abilities = entry.Abilities,
                 AbilityNameIndices = entry.AbilityNameIndices,
                 LevelUpMoves = entry.LevelUp.Select(pair => new MercuryLearnMove(pair[1], pair[0])).ToList(),
@@ -234,25 +265,21 @@ public sealed class MercuryGameData
             });
         }
 
+        var romItems = rom is null ? null : ReadItems(rom, codec);
         var items = new List<MercuryItem>(profile.Items.Count);
         foreach (MercuryProfile.ProfileItem entry in profile.Items)
         {
+            var romItem = romItems is not null && (uint)entry.Id < (uint)romItems.Count ? romItems[entry.Id] : null;
             items.Add(new MercuryItem
             {
                 Id = entry.Id,
                 EmbeddedId = entry.EmbeddedId,
                 Name = entry.Name,
+                Pocket = romItem?.Pocket ?? entry.Pocket,
+                Type = romItem?.Type ?? entry.Type,
             });
         }
 
-        byte[]? rom = null;
-        if (!string.IsNullOrWhiteSpace(profile.RomPath))
-        {
-            string candidate = Path.IsPathRooted(profile.RomPath)
-                ? profile.RomPath
-                : Path.Combine(directory, profile.RomPath);
-            rom = TryLoadVerifiedRom(candidate);
-        }
         uint[][] growth = profile.Growth is { Length: MercuryRomLayout.GrowthRateCount }
             ? profile.Growth
             : (rom is null ? [] : ReadGrowthTables(rom));
@@ -289,6 +316,16 @@ public sealed class MercuryGameData
                 GenderRatio = s.GenderRatio,
                 GrowthRate = s.GrowthRate,
                 BaseFriendship = s.BaseFriendship,
+                Type1 = s.Type1,
+                Type2 = s.Type2,
+                EVYield = s.EVYield,
+                EggGroup1 = s.EggGroup1,
+                EggGroup2 = s.EggGroup2,
+                CatchRate = s.CatchRate,
+                HatchCycles = s.HatchCycles,
+                BaseEXP = s.BaseEXP,
+                Color = s.Color,
+                EscapeRate = s.EscapeRate,
                 Abilities = s.Abilities,
                 AbilityNameIndices = s.AbilityNameIndices,
                 LevelUp = s.LevelUpMoves.Select(m => new[] { m.Level, m.Move }).ToList(),
@@ -311,6 +348,8 @@ public sealed class MercuryGameData
                 Id = i.Id,
                 EmbeddedId = i.EmbeddedId,
                 Name = i.Name,
+                Pocket = i.Pocket,
+                Type = i.Type,
             }).ToList(),
         };
         profile.Save(directory);
@@ -347,6 +386,74 @@ public sealed class MercuryGameData
 
     public string ItemName(int id)
         => (uint)id < (uint)_items.Count ? _items[id].Name : "?";
+
+    public byte[]? GetTypeSpriteRgba(byte type, out int width, out int height)
+    {
+        width = height = 0;
+        return _rom is not null && MercurySpriteLoader.TryRenderType(_rom, type, out var rgba, out width, out height)
+            ? rgba : null;
+    }
+
+    /// <summary>
+    /// Item icon rendered from this ROM's own per-item tiles/palette pointers (consumer 0x08098974).
+    /// Icons are always 24x24; returns null when the ROM is absent or the entry/pointers are unusable.
+    /// </summary>
+    public byte[]? GetItemSpriteRgba(int item, out int width, out int height)
+    {
+        width = height = 0;
+        if (_rom is null || !MercurySpriteLoader.TryRenderItem(_rom, item, out var rgba))
+            return null;
+        width = MercurySpriteLoader.ItemIconWidth;
+        height = MercurySpriteLoader.ItemIconHeight;
+        return rgba;
+    }
+
+    /// <summary>Region-section names used by GetMapName at 0x080C4D78.</summary>
+    public string[] GetLocationNames(string language)
+    {
+        var names = new string[256];
+        for (int id = 0; id < names.Length; id++)
+            names[id] = language.StartsWith("zh", StringComparison.Ordinal) ? $"地点编号 {id}" : $"Location ID {id}";
+        if (_rom is null)
+            return names;
+        // The consumer subtracts 0x58 and compares with 0xA4 before indexing this table.
+        for (int index = 0; index < 0xA5; index++)
+        {
+            if (!MercuryRomLayout.TryReadU32(_rom, 0x08C2B000u + (uint)index * 4, out uint pointer))
+                throw new InvalidDataException("Mercury location-name table is truncated.");
+            if (!MercuryRomLayout.IsRomAddress(pointer))
+            {
+                // Existing extraction records 0xFFFFFFFF entries: an in-range index is not a valid pointer.
+                names[index + 0x58] += language.StartsWith("zh", StringComparison.Ordinal)
+                    ? "（名称指针无效）" : " (invalid name pointer)";
+                continue;
+            }
+            names[index + 0x58] = _text.Decode(_rom.AsSpan(checked((int)MercuryRomLayout.ToOffset(pointer))));
+        }
+        return names;
+    }
+
+    public byte[]? GetBallSpriteRgba(byte ball, out int width, out int height)
+    {
+        width = height = 0;
+        return _rom is not null && MercurySpriteLoader.TryRenderBall(_rom, ball, out var rgba, out width, out height)
+            ? rgba : null;
+    }
+
+    /// <summary>
+    /// Ball names indexed by the actual stored byte. Capture code 0x09D0C386..0x09D0C398
+    /// stores ItemId_GetType's byte, then 0x09D0C3F0 passes it unchanged to field 0x26.
+    /// Unmapped bytes retain their numeric identity, not a retail ball interpretation.
+    /// </summary>
+    public string[] GetBallNames(string language)
+    {
+        var names = new string[256];
+        for (int value = 0; value < names.Length; value++)
+            names[value] = language.StartsWith("zh", StringComparison.Ordinal) ? $"球编号 {value}" : $"Ball ID {value}";
+        foreach (var group in _items.Where(item => item.Pocket == 3 && item.Type.HasValue).GroupBy(item => item.Type!.Value))
+            names[group.Key] = string.Join(" / ", group.Select(item => item.Name).Distinct());
+        return names;
+    }
 
     /// <summary>Resolved display name for a species' ability slot (0 = first, 1 = second, 2 = hidden).</summary>
     public string AbilityName(int species, int abilitySlot)
@@ -501,6 +608,12 @@ public sealed class MercuryGameData
             [
                 rom[o + 0], rom[o + 1], rom[o + 2], rom[o + 3], rom[o + 4], rom[o + 5],
             ];
+            byte ev1 = rom[o + 0x0A];
+            byte ev2 = rom[o + 0x0B];
+            int[] evYield =
+            [
+                ev1 & 3, (ev1 >> 2) & 3, (ev1 >> 4) & 3, (ev1 >> 6) & 3, ev2 & 3, (ev2 >> 2) & 3,
+            ];
             int[] abilities = [rom[o + 0x16], rom[o + 0x17], rom[o + 0x1A]];
             int[] abilityIndices =
             [
@@ -522,6 +635,16 @@ public sealed class MercuryGameData
                 GenderRatio = rom[o + 0x10],
                 GrowthRate = rom[o + 0x13],
                 BaseFriendship = rom[o + 0x12],
+                Type1 = rom[o + 6],
+                Type2 = rom[o + 7],
+                EVYield = evYield,
+                EggGroup1 = rom[o + 0x14],
+                EggGroup2 = rom[o + 0x15],
+                CatchRate = rom[o + 8],
+                HatchCycles = rom[o + 0x11],
+                BaseEXP = rom[o + 9],
+                Color = rom[o + 0x19] & 0x7F,
+                EscapeRate = rom[o + 0x18],
                 Abilities = abilities,
                 AbilityNameIndices = abilityIndices,
                 LevelUpMoves = levelUp,
@@ -531,6 +654,49 @@ public sealed class MercuryGameData
             });
         }
         return species;
+    }
+
+    /// <summary>
+    /// Reads only the ROM base-stats table row facts (no names or learnsets); used to backfill profile
+    /// entries written before the personal-fact fields existed. Offsets mirror <see cref="ReadSpecies"/>.
+    /// </summary>
+    private static MercurySpecies[] ReadSpeciesPersonal(byte[] rom)
+    {
+        var result = new MercurySpecies[MercuryRomLayout.SpeciesCount];
+        if (!MercuryRomLayout.TryReadU32(rom, MercuryRomLayout.BaseStatsSlot, out uint statsBase))
+            return result;
+
+        long statsOffset = MercuryRomLayout.ToOffset(statsBase);
+        for (int i = 0; i < result.Length; i++)
+        {
+            long o = statsOffset + (MercuryRomLayout.BaseStatsStride * i);
+            if (o < 0 || o + MercuryRomLayout.BaseStatsStride > rom.Length)
+                break;
+
+            byte ev1 = rom[o + 0x0A];
+            byte ev2 = rom[o + 0x0B];
+            result[i] = new MercurySpecies
+            {
+                Id = i,
+                BaseStats = [rom[o + 0], rom[o + 1], rom[o + 2], rom[o + 3], rom[o + 4], rom[o + 5]],
+                GenderRatio = rom[o + 0x10],
+                GrowthRate = rom[o + 0x13],
+                BaseFriendship = rom[o + 0x12],
+                Type1 = rom[o + 6],
+                Type2 = rom[o + 7],
+                EVYield = [ev1 & 3, (ev1 >> 2) & 3, (ev1 >> 4) & 3, (ev1 >> 6) & 3, ev2 & 3, (ev2 >> 2) & 3],
+                EggGroup1 = rom[o + 0x14],
+                EggGroup2 = rom[o + 0x15],
+                CatchRate = rom[o + 8],
+                HatchCycles = rom[o + 0x11],
+                BaseEXP = rom[o + 9],
+                Color = rom[o + 0x19] & 0x7F,
+                EscapeRate = rom[o + 0x18],
+                Abilities = [rom[o + 0x16], rom[o + 0x17], rom[o + 0x1A]],
+                HasData = true,
+            };
+        }
+        return result;
     }
 
     private static List<MercuryMove> ReadMoves(byte[] rom, MercuryTextCodec codec)
@@ -583,6 +749,8 @@ public sealed class MercuryGameData
                 Id = i,
                 EmbeddedId = embedded,
                 Name = name,
+                Pocket = rom[o + 0x1A],
+                Type = rom[o + 0x1B],
             });
         }
         return items;
@@ -829,6 +997,17 @@ public sealed class MercuryGameData
                 abilityElement.GetProperty("ability2").GetInt32(),
                 abilityElement.GetProperty("hiddenAbility").GetInt32(),
             ];
+
+            int[] evYield = new int[6];
+            if (stats.TryGetProperty("evYield", out JsonElement evElement))
+            {
+                evYield[0] = evElement.GetProperty("hp").GetInt32();
+                evYield[1] = evElement.GetProperty("atk").GetInt32();
+                evYield[2] = evElement.GetProperty("def").GetInt32();
+                evYield[3] = evElement.GetProperty("spe").GetInt32();
+                evYield[4] = evElement.GetProperty("spa").GetInt32();
+                evYield[5] = evElement.GetProperty("spd").GetInt32();
+            }
             int[] indices = new int[3];
             for (int slot = 0; slot < 3; slot++)
             {
@@ -862,6 +1041,16 @@ public sealed class MercuryGameData
                 GenderRatio = (byte)stats.GetProperty("genderRatio").GetInt32(),
                 GrowthRate = (byte)stats.GetProperty("growthRate").GetInt32(),
                 BaseFriendship = (byte)stats.GetProperty("friendship").GetInt32(),
+                Type1 = stats.TryGetProperty("type1", out JsonElement t1) ? (byte)t1.GetInt32() : (byte)0,
+                Type2 = stats.TryGetProperty("type2", out JsonElement t2) ? (byte)t2.GetInt32() : (byte)0,
+                EVYield = evYield,
+                EggGroup1 = stats.TryGetProperty("eggGroup1", out JsonElement eg1) ? eg1.GetInt32() : 0,
+                EggGroup2 = stats.TryGetProperty("eggGroup2", out JsonElement eg2) ? eg2.GetInt32() : 0,
+                CatchRate = stats.TryGetProperty("catchRate", out JsonElement cr) ? (byte)cr.GetInt32() : (byte)0,
+                HatchCycles = stats.TryGetProperty("eggCycles", out JsonElement ec) ? (byte)ec.GetInt32() : (byte)0,
+                BaseEXP = stats.TryGetProperty("expYield", out JsonElement ex) ? ex.GetInt32() : 0,
+                Color = stats.TryGetProperty("bodyColor", out JsonElement bc) ? bc.GetInt32() : 0,
+                EscapeRate = stats.TryGetProperty("safariFleeRate", out JsonElement sf) ? sf.GetInt32() : 0,
                 Abilities = abilities,
                 AbilityNameIndices = indices,
                 LevelUpMoves = levelUp,
@@ -921,6 +1110,8 @@ public sealed class MercuryGameData
                 Id = entry.GetProperty("index").GetInt32(),
                 EmbeddedId = entry.GetProperty("itemId").GetInt32(),
                 Name = entry.TryGetProperty("name", out JsonElement nameElement) ? nameElement.GetString() ?? string.Empty : string.Empty,
+                Pocket = entry.TryGetProperty("pocket", out var pocket) ? pocket.GetByte() : null,
+                Type = entry.TryGetProperty("type", out var type) ? type.GetByte() : null,
             });
         }
         return items;

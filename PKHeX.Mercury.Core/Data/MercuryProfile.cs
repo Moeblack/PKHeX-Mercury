@@ -14,7 +14,7 @@ namespace PKHeX.Mercury.Core;
 internal sealed class MercuryProfile
 {
     public const string FormatId = "PKHeX.Mercury.Profile";
-    public const int CurrentVersion = 1;
+    public const int CurrentVersion = 2;
     public const string FileName = "mercury-profile.json";
 
     /// <summary>
@@ -104,6 +104,16 @@ internal sealed class MercuryProfile
         public byte GenderRatio { get; set; }
         public byte GrowthRate { get; set; }
         public byte BaseFriendship { get; set; }
+        public byte Type1 { get; set; }
+        public byte Type2 { get; set; }
+        public int[] EVYield { get; set; } = new int[6];
+        public int EggGroup1 { get; set; }
+        public int EggGroup2 { get; set; }
+        public byte CatchRate { get; set; }
+        public byte HatchCycles { get; set; }
+        public int BaseEXP { get; set; }
+        public int Color { get; set; }
+        public int EscapeRate { get; set; }
         public int[] Abilities { get; set; } = new int[3];
         public int[] AbilityNameIndices { get; set; } = new int[3];
         public List<int[]> LevelUp { get; set; } = [];
@@ -127,6 +137,8 @@ internal sealed class MercuryProfile
     {
         public int Id { get; set; }
         public int EmbeddedId { get; set; }
+        public byte? Pocket { get; set; }
+        public byte? Type { get; set; }
         public string Name { get; set; } = string.Empty;
     }
 }

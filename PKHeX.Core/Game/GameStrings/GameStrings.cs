@@ -60,8 +60,36 @@ public sealed class GameStrings : IBasicStrings
         1712, 1713, 1746, 1747, 1748, 1749, 1750, 1771,
     ];
 
+    /// <summary>
+    /// True when this instance carries Mercury (ROM hack) internal id tables instead of the retail lists.
+    /// </summary>
+    /// <remarks>
+    /// Mercury has its own internal species/move/item/ability index spaces. The retail location/type/nature
+    /// resources are retained because those index spaces are unchanged for the base engine.
+    /// </remarks>
+    public bool IsMercury { get; }
+    public string[]? MercuryLocationNames { get; }
+
+    /// <summary>
+    /// Creates a fresh <see cref="GameStrings"/> carrying Mercury internal id tables. The retail resources
+    /// for the requested language are loaded and then overridden; cached instances are never mutated.
+    /// </summary>
+    public static GameStrings CreateMercury(string lang, string[] species, string[] moves, string[] items, string[] abilities, string[]? balls = null, string[]? locations = null)
+        => new(lang, species, moves, items, abilities, balls, locations);
+
     internal GameStrings(string langFilePrefix)
+        : this(langFilePrefix, null, null, null, null)
     {
+    }
+
+    /// <summary>
+    /// Creates a strings instance whose species/move/item/ability lists are replaced with format-specific
+    /// (Mercury) internal id tables. The retail resources are never mutated; a fresh instance is produced.
+    /// </summary>
+    internal GameStrings(string langFilePrefix, string[]? mercurySpecies, string[]? mercuryMoves, string[]? mercuryItems, string[]? mercuryAbilities, string[]? mercuryBalls = null, string[]? mercuryLocations = null)
+    {
+        IsMercury = mercurySpecies is not null;
+        MercuryLocationNames = mercuryLocations is null ? null : (string[])mercuryLocations.Clone();
         Language = GameLanguage.GetLanguage(LanguageFilePrefix = langFilePrefix);
 
         ribbons = Get("ribbons");
@@ -103,11 +131,48 @@ public sealed class GameStrings : IBasicStrings
         wallpapernames = Get("wallpaper");
         groundtiletypes = Get("groundtile");
         gamelist = Get("games");
+        if (IsMercury)
+        {
+            gamelist = (string[])gamelist.Clone();
+            for (int id = 0; id < 16; id++)
+                gamelist[id] = langFilePrefix.StartsWith("zh", StringComparison.Ordinal) ? $"来源编号 {id}" : $"Origin ID {id}";
+            // Creation code at 0x0803DC48 reads the origin byte 4 from 0x081E9F10.
+            gamelist[4] = langFilePrefix.StartsWith("zh", StringComparison.Ordinal) ? "水银（来源值4）" : "Mercury (origin 4)";
+        }
 
-        var balls = Items_Ball;
-        balllist = new string[balls.Length];
-        for (int i = 0; i < balllist.Length; i++)
-            balllist[i] = itemlist[balls[i]];
+        // Format-specific internal id tables (Mercury). Replacing the retail arrays keeps the upstream
+        // combobox/handler logic untouched while indexing by the hack's internal ids.
+        if (mercurySpecies is not null)
+            specieslist = mercurySpecies;
+        if (mercuryMoves is not null)
+            movelist = mercuryMoves;
+        if (mercuryItems is not null)
+        {
+            itemlist = mercuryItems;
+            g3items = mercuryItems; // Mercury is a Gen3 (BPRE) format; the Gen3 item list must use internal ids.
+        }
+        if (mercuryAbilities is not null)
+            abilitylist = mercuryAbilities;
+
+        if (IsMercury)
+        {
+            // Supplied by the ROM-specific type-to-item mapping, never the retail Items_Ball table.
+            if (mercuryBalls is not null)
+                balllist = (string[])mercuryBalls.Clone();
+            else
+            {
+                balllist = new string[256];
+                for (int i = 0; i < balllist.Length; i++)
+                    balllist[i] = langFilePrefix.StartsWith("zh", StringComparison.Ordinal) ? $"球编号 {i}" : $"Ball ID {i}";
+            }
+        }
+        else
+        {
+            var balls = Items_Ball;
+            balllist = new string[balls.Length];
+            for (int i = 0; i < balllist.Length; i++)
+                balllist[i] = itemlist[balls[i]];
+        }
 
         pokeblocks = Get("pokeblock");
         forms = Get("forms");
@@ -207,6 +272,18 @@ public sealed class GameStrings : IBasicStrings
 
     private void Sanitize()
     {
+        if (IsMercury)
+        {
+            // Mercury internal id tables must not receive the retail de-duplication index edits below
+            // (they assume national species / retail item & ability indices). Keep the location editing,
+            // then only mark the empty index used by the upstream combobox logic.
+            SanitizeMetLocations();
+            specieslist[0] = EmptyIndex;
+            var noneMercury = $"({Get("items")[0]})";
+            abilitylist[0] = itemlist[0] = movelist[0] = noneMercury;
+            return;
+        }
+
         SanitizeItemNames();
         SanitizeMetLocations();
 
@@ -792,7 +869,8 @@ public sealed class GameStrings : IBasicStrings
         }
     }
 
-    public string[] GetItemStrings(EntityContext context, GameVersion version = GameVersion.Any) => context switch
+    public string[] GetItemStrings(EntityContext context, GameVersion version = GameVersion.Any)
+        => IsMercury ? itemlist : context switch
     {
         EntityContext.Gen1 => g1items,
         EntityContext.Gen2 => g2items,
@@ -927,6 +1005,13 @@ public sealed class GameStrings : IBasicStrings
     /// <returns>Location name. Potentially an empty string if no location name is known for that location value.</returns>
     public string GetLocationName(bool isEggLocation, ushort location, byte format, byte generation, GameVersion version)
     {
+        if (IsMercury)
+        {
+            if (MercuryLocationNames is { } locations && location < locations.Length)
+                return locations[location];
+            return LanguageFilePrefix.StartsWith("zh", StringComparison.Ordinal) ? $"地点编号 {location}" : $"Location ID {location}";
+        }
+
         if (format == 1)
         {
             // Legality binaries have Location IDs that were manually remapped to Gen3 location IDs.

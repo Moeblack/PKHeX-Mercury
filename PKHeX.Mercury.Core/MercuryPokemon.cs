@@ -505,16 +505,56 @@ public sealed class MercuryPokemon
 
         var ivs = IVs;
         var evs = EVs;
-        int nature = Nature;
+        var stats = ComputeStats(baseStats, level, mode, ivs, evs, Nature, Species == 0x12F);
+
+        // Current HP update mirrors ROM 0x09D073F6..0x09D07438.
+        ushort oldHp = ReadU16(_partyTail, MercurySaveLayout.PartyHp - MercurySaveLayout.PartyTail);
+        ushort oldMax = ReadU16(_partyTail, MercurySaveLayout.PartyMaxHp - MercurySaveLayout.PartyTail);
+        int newMax = stats[0];
+        int newHp;
+        if (oldHp == 0 && oldMax == 0)
+            newHp = newMax;
+        else if (oldHp == 0)
+            newHp = 0;
+        else
+            newHp = newMax >= oldMax ? oldHp + (newMax - oldMax) : oldHp;
+        newHp = Math.Clamp(newHp, 0, newMax);
+
+        WriteU16(_partyTail, MercurySaveLayout.PartyHp - MercurySaveLayout.PartyTail, (ushort)newHp);
+        WriteU16(_partyTail, MercurySaveLayout.PartyMaxHp - MercurySaveLayout.PartyTail, stats[0]);
+        WriteU16(_partyTail, MercurySaveLayout.PartyAtk - MercurySaveLayout.PartyTail, stats[1]);
+        WriteU16(_partyTail, MercurySaveLayout.PartyDef - MercurySaveLayout.PartyTail, stats[2]);
+        WriteU16(_partyTail, MercurySaveLayout.PartySpe - MercurySaveLayout.PartyTail, stats[3]);
+        WriteU16(_partyTail, MercurySaveLayout.PartySpA - MercurySaveLayout.PartyTail, stats[4]);
+        WriteU16(_partyTail, MercurySaveLayout.PartySpD - MercurySaveLayout.PartyTail, stats[5]);
+        PartyLevel = level;
+    }
+
+    /// <summary>
+    /// Compute the six party stats (HP, Atk, Def, Spe, SpA, SpD) using the ROM stat-scaling mode.
+    /// Shared by <see cref="RecalculatePartyStats"/> and the native PKM adapter so both use identical formulas.
+    /// </summary>
+    public static ushort[] ComputeStats(int[] baseStats, byte level, int mode, ReadOnlySpan<byte> ivs, ReadOnlySpan<byte> evs, int nature, bool shedinja)
+    {
+        ArgumentNullException.ThrowIfNull(baseStats);
+        if (baseStats.Length < 6)
+            throw new ArgumentException("baseStats must have at least 6 entries (HP, Atk, Def, Spe, SpA, SpD).", nameof(baseStats));
+        if (mode is not (0 or 11 or 12 or 13))
+            throw new ArgumentOutOfRangeException(nameof(mode), mode, "Stat mode must be 0, 11, 12 or 13.");
+        if (ivs.Length < 6)
+            throw new ArgumentException("ivs must have at least 6 entries.", nameof(ivs));
+        if (evs.Length < 6)
+            throw new ArgumentException("evs must have at least 6 entries.", nameof(evs));
+        if ((uint)nature >= (uint)NatureUp.Length)
+            throw new ArgumentOutOfRangeException(nameof(nature), nature, "Nature must be 0-24.");
+
         int up = NatureUp[nature];
         int down = NatureDown[nature];
-
         int hpBase = baseStats[0];
         int bst = 0;
         for (int i = 0; i < 6; i++)
             bst += baseStats[i];
 
-        bool shedinja = Species == 0x12F;
         bool scaled = mode == 12 && bst <= 350; // ROM gate 0x09D07344 (BST <= 350) selects the 4*base path
         int mode11Denominator = bst - hpBase;
 
@@ -571,28 +611,7 @@ public sealed class MercuryPokemon
                 stat = stat * 90 / 100;
             stats[i] = (ushort)Math.Clamp(stat, 0, 0xFFFF);
         }
-
-        // Current HP update mirrors ROM 0x09D073F6..0x09D07438.
-        ushort oldHp = ReadU16(_partyTail, MercurySaveLayout.PartyHp - MercurySaveLayout.PartyTail);
-        ushort oldMax = ReadU16(_partyTail, MercurySaveLayout.PartyMaxHp - MercurySaveLayout.PartyTail);
-        int newMax = stats[0];
-        int newHp;
-        if (oldHp == 0 && oldMax == 0)
-            newHp = newMax;
-        else if (oldHp == 0)
-            newHp = 0;
-        else
-            newHp = newMax >= oldMax ? oldHp + (newMax - oldMax) : oldHp;
-        newHp = Math.Clamp(newHp, 0, newMax);
-
-        WriteU16(_partyTail, MercurySaveLayout.PartyHp - MercurySaveLayout.PartyTail, (ushort)newHp);
-        WriteU16(_partyTail, MercurySaveLayout.PartyMaxHp - MercurySaveLayout.PartyTail, stats[0]);
-        WriteU16(_partyTail, MercurySaveLayout.PartyAtk - MercurySaveLayout.PartyTail, stats[1]);
-        WriteU16(_partyTail, MercurySaveLayout.PartyDef - MercurySaveLayout.PartyTail, stats[2]);
-        WriteU16(_partyTail, MercurySaveLayout.PartySpe - MercurySaveLayout.PartyTail, stats[3]);
-        WriteU16(_partyTail, MercurySaveLayout.PartySpA - MercurySaveLayout.PartyTail, stats[4]);
-        WriteU16(_partyTail, MercurySaveLayout.PartySpD - MercurySaveLayout.PartyTail, stats[5]);
-        PartyLevel = level;
+        return stats;
     }
 
     /// <summary>

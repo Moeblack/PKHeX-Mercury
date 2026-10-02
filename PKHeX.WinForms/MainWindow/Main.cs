@@ -15,6 +15,7 @@ using PKHeX.Core;
 using PKHeX.Drawing;
 using PKHeX.Drawing.Misc;
 using PKHeX.Drawing.PokeSprite;
+using PKHeX.Mercury.Core;
 using PKHeX.WinForms.Controls;
 using static PKHeX.Core.MessageStrings;
 
@@ -110,7 +111,32 @@ public partial class Main : Form
 
         // Add translatable extra menu controls.
         Menu_Tools.DropDownItems.Add(new ToolStripSeparator());
+        MercuryIntegration.AddMenuControls(Menu_Tools);
+        MercuryIntegration.ProfileChanged += OnMercuryProfileChanged;
         Troubleshooting.AddTroubleshootingControls(Menu_Tools, Plugins, true);
+    }
+
+    /// <summary>
+    /// When the Mercury profile/data is replaced, reopen the active Mercury save so its controls do not keep
+    /// a stale data source. The save's own <see cref="MercurySaveFile.GameData"/> stays authoritative otherwise.
+    /// </summary>
+    private void OnMercuryProfileChanged()
+    {
+        var sav = C_SAV.SAV;
+        if (sav is not MercurySaveFile)
+            return;
+
+        var path = sav.Metadata.FilePath;
+        if (string.IsNullOrEmpty(path) || !File.Exists(path))
+        {
+            WinFormsUtil.Alert(WinFormsTranslator.TranslateText("Mercury.ReopenRequired",
+                "Mercury configuration changed; reopen the save file to apply the new data.", CurrentLanguage));
+            return;
+        }
+
+        if (sav.State.Edited && WinFormsUtil.Prompt(MessageBoxButtons.YesNo, MsgProgramCloseUnsaved, MsgProgramSaveFileConfirm) != DialogResult.Yes)
+            return;
+        OpenFromPath(path);
     }
 
     public void LoadInitialFiles(StartupArguments args)
@@ -607,6 +633,25 @@ public partial class Main : Form
     private bool OpenPKM(PKM pk)
     {
         var sav = C_SAV.SAV;
+
+        if (sav is MercurySaveFile)
+        {
+            // Mercury has its own record layout; the retail type converter must not touch internal ids.
+            if (pk is MercuryPKM mercury)
+            {
+                PKME_Tabs.PopulateFields(mercury);
+                return true;
+            }
+            WinFormsUtil.Error("目标存档为水银格式，无法直接导入零售宝可梦数据。");
+            return false;
+        }
+
+        if (pk is MercuryPKM)
+        {
+            WinFormsUtil.Error("水银宝可梦只能在水银存档中查看/编辑。");
+            return false;
+        }
+
         var destType = sav.PKMType;
         var tmp = EntityConverter.ConvertToType(pk, destType, out var c);
         Debug.WriteLine(c.GetDisplayString(pk, destType));
@@ -771,7 +816,17 @@ public partial class Main : Form
         Menu_Undo.Enabled = false;
         Menu_Redo.Enabled = false;
 
-        GameInfo.FilteredSources = new FilteredGameDataSource(sav, GameInfo.Sources, HaX);
+        if (sav is MercurySaveFile)
+        {
+            // Fresh Mercury internal id tables; the cached retail resources are never mutated.
+            LocalizeUtil.InitializeStrings(CurrentLanguage, sav, HaX);
+        }
+        else
+        {
+            // Reopening a retail save restores the original cached strings and filters.
+            GameInfo.Strings = GameInfo.GetStrings(CurrentLanguage);
+            GameInfo.FilteredSources = new FilteredGameDataSource(sav, GameInfo.Sources, HaX);
+        }
         ResetSAVPKMEditors(sav);
         C_SAV.M.Reset();
 
@@ -903,6 +958,26 @@ public partial class Main : Form
 
     private bool SanityCheckSAV(ref SaveFile sav)
     {
+        if (sav is MercurySaveFile { RetailAlternative: { } retail } mercury)
+        {
+            var message = WinFormsTranslator.TranslateText("Mercury.FormatAmbiguous",
+                "This file satisfies both Mercury and a retail save layout. Select its actual format.", CurrentLanguage);
+            string[] choices =
+            [
+                WinFormsTranslator.TranslateText("Mercury.FormatMercury", "Mercury", CurrentLanguage),
+                WinFormsTranslator.TranslateText("Mercury.FormatRetail", "Original game format", CurrentLanguage) + $" ({retail.GetType().Name})",
+            ];
+            if (!this.TrySelectIndex(message, MsgFileLoadSaveSelectVersion, choices, out var selected))
+                return false;
+            if (selected == 1)
+            {
+                if (mercury.Metadata.FilePath is { } sourcePath)
+                    retail.Metadata.SetExtraInfo(sourcePath);
+                sav = retail;
+            }
+            else
+                mercury.RetailAlternative = null;
+        }
         if (sav.Generation <= 3)
             SaveLanguage.TryRevise(sav);
 
@@ -1101,8 +1176,8 @@ public partial class Main : Form
 
         if (dragout.Image is not Bitmap sprite)
             return;
-        var la = new LegalityAnalysis(pk, C_SAV.SAV.Personal);
-        if (la.Parsed && pk.Species != 0)
+        var la = pk.SupportsRetailLegality ? new LegalityAnalysis(pk, C_SAV.SAV.Personal) : null;
+        if (la is { Parsed: true } && pk.Species != 0)
         {
             var img = SpriteUtil.GetLegalIndicator(la.Valid);
             sprite = ImageUtil.LayerImage(sprite, img, sprite.Width - img.Width, 0);
@@ -1123,6 +1198,14 @@ public partial class Main : Form
 
         if (pk.Species == 0 || !pk.ChecksumValid)
         { WinFormsUtil.Hand(); return; }
+
+        if (pk is MercuryPKM mercury)
+        {
+            // Explicit Mercury report; never runs retail encounter tables and never reports green-legitimate.
+            PKME_Tabs.UpdateLegality();
+            MercuryLegality.Show(this, mercury);
+            return;
+        }
 
         var la = new LegalityAnalysis(pk, C_SAV.SAV.Personal);
         PKME_Tabs.UpdateLegality(la);
@@ -1215,7 +1298,7 @@ public partial class Main : Form
 
     private void PKME_Tabs_LegalityChanged(object sender, EventArgs e)
     {
-        if (HaX)
+        if (HaX || C_SAV.SAV is MercurySaveFile)
         {
             PB_Legal.Visible = false;
             return;

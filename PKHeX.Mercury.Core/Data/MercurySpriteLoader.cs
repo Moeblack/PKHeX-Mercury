@@ -12,6 +12,17 @@ internal static class MercurySpriteLoader
     public const int Width = MercuryRomLayout.SpriteWidth;
     public const int Height = MercuryRomLayout.SpriteHeight;
 
+    // --- item icons (consumer 0x08098974) ---
+    // Table literal at 0x0809899C holds 0x093C8100; entry = base + item*8 + selector*4,
+    // selector 0 = LZ77 tiles, 1 = LZ77 BGR555 palette. The composer 0x0809872C copies
+    // 3 rows of 3 8x8 tiles (0x60 bytes/row) -> 24x24, standard 4bpp, index 0 transparent.
+    public const int ItemIconWidth = 24;
+    public const int ItemIconHeight = 24;
+    public const int ItemIconTileBytes = 288;  // 3 * 3 tiles * 32 bytes
+    public const int ItemIconPaletteBytes = 32; // 16 colours
+    private const int ItemIconTilesPerRow = 3;
+    private const uint ItemSpriteTableLiteral = 0x0809899C;
+
     /// <summary>
     /// True when <paramref name="pid"/> / <paramref name="trainerId"/> select the shiny palette,
     /// per the ROM's four-16-bit-half XOR test (&lt;= 7).
@@ -75,6 +86,152 @@ internal static class MercurySpriteLoader
         }
 
         rgba = output;
+        return true;
+    }
+
+    /// <summary>
+    /// Item icon from the per-item tiles/palette pointers consumed by 0x08098974. Entry
+    /// <c>0x0809899C</c> -> table <c>0x093C8100</c>; <c>base + item*8</c> gives the LZ77 tile block and
+    /// <c>+4</c> the LZ77 BGR555 palette. Valid images are 24x24 (3x3 8x8 tiles), index 0 transparent.
+    /// </summary>
+    public static bool TryRenderItem(byte[] rom, int item, out byte[] rgba)
+    {
+        rgba = [];
+        if (item < 0 || item >= MercuryRomLayout.ItemCount)
+            return false;
+        if (!MercuryRomLayout.TryReadU32(rom, ItemSpriteTableLiteral, out uint table))
+            return false;
+        if (!MercuryRomLayout.IsRomAddress(table))
+            return false;
+
+        long entry = MercuryRomLayout.ToOffset(table) + (8L * item);
+        if (!MercuryRomLayout.TryReadU32Raw(rom, entry, out uint tilesPtr))
+            return false;
+        if (!MercuryRomLayout.TryReadU32Raw(rom, entry + 4, out uint palettePtr))
+            return false;
+        if (!MercuryRomLayout.IsRomAddress(tilesPtr) || !MercuryRomLayout.IsRomAddress(palettePtr))
+            return false; // the ROM rejects out-of-range pointers; no fallback table
+        if (!MercuryLz77.TryDecompress(rom, tilesPtr, out byte[] tiles))
+            return false;
+        if (tiles.Length < ItemIconTileBytes)
+            return false;
+        if (!MercuryLz77.TryDecompress(rom, palettePtr, out byte[] palette))
+            return false;
+        if (palette.Length < ItemIconPaletteBytes)
+            return false;
+
+        Span<int> colors = stackalloc int[16];
+        for (int i = 0; i < 16; i++)
+        {
+            ushort value = (ushort)(palette[2 * i] | (palette[(2 * i) + 1] << 8));
+            colors[i] = Expand555(value);
+        }
+
+        var output = new byte[ItemIconWidth * ItemIconHeight * 4];
+        for (int y = 0; y < ItemIconHeight; y++)
+        {
+            for (int x = 0; x < ItemIconWidth; x++)
+            {
+                int tile = ((y / 8) * ItemIconTilesPerRow) + (x / 8);
+                int offset = (tile * 32) + ((y % 8) * 4) + ((x % 8) / 2);
+                byte packed = tiles[offset];
+                int colorIndex = (x & 1) == 0 ? packed & 0x0F : packed >> 4;
+                int color = colors[colorIndex];
+                int dest = ((y * ItemIconWidth) + x) * 4;
+                output[dest + 0] = (byte)(color & 0xFF);          // R
+                output[dest + 1] = (byte)((color >> 8) & 0xFF);   // G
+                output[dest + 2] = (byte)((color >> 16) & 0xFF);  // B
+                output[dest + 3] = colorIndex == 0 ? (byte)0 : (byte)0xFF; // index 0 is transparent
+            }
+        }
+
+        rgba = output;
+        return true;
+    }
+
+    /// <summary>Type icon drawn by 0x08107D68, with the palette selected by 0x081064BA.</summary>
+    public static bool TryRenderType(byte[] rom, byte type, out byte[] rgba, out int width, out int height)
+    {
+        rgba = [];
+        width = height = 0;
+        if (type != 9 && !rom.AsSpan(0x1DDA014, 19).Contains(type))
+            return false;
+        int entry = 0x1CCC35C + (type + 1) * 4;
+        width = rom[entry];
+        height = rom[entry + 1];
+        int tileStart = rom[entry + 2] | (rom[entry + 3] << 8);
+        int start = 0xEFC5E4 + tileStart * 32;
+        const int palette = 0xEFE9E4;
+        rgba = new byte[width * height * 4];
+        for (int y = 0; y < height; y++)
+        for (int x = 0; x < width; x++)
+        {
+            // BlitBitmapRectToWindow receives source width 0x80: sixteen 8-pixel tiles per row.
+            int offset = start + ((y / 8) * 16 + x / 8) * 32 + (y % 8) * 4 + (x % 8) / 2;
+            byte packed = rom[offset];
+            int index = (x & 1) == 0 ? packed & 15 : packed >> 4;
+            int color = Expand555((ushort)(rom[palette + 2 * index] | (rom[palette + 2 * index + 1] << 8)));
+            int dest = (y * width + x) * 4;
+            rgba[dest] = (byte)color;
+            rgba[dest + 1] = (byte)(color >> 8);
+            rgba[dest + 2] = (byte)(color >> 16);
+            rgba[dest + 3] = index == 0 ? (byte)0 : (byte)255;
+        }
+        return true;
+    }
+
+    /// <summary>First ball frame from the tables consumed by 0x09D0CC08 and 0x09D0CB48.</summary>
+    public static bool TryRenderBall(byte[] rom, byte ball, out byte[] rgba, out int width, out int height)
+    {
+        rgba = [];
+        width = height = 0;
+        // 0..26 are the ball item types; 27 is selected by ItemIdToBallId for item 0xFFFF.
+        if (ball > 27)
+            return false;
+        if (!TryReadEntry(rom, 0x09DDF824, ball, out uint sheet, out ushort declaredSize)
+            || !TryReadEntry(rom, 0x09DDF744, ball, out uint palette, out _)
+            || !MercuryLz77.TryDecompress(rom, sheet, out byte[] tiles)
+            || !MercuryLz77.TryDecompress(rom, palette, out byte[] colors)
+            || colors.Length < 32 || tiles.Length < declaredSize)
+            return false;
+
+        uint template = 0x09DDF4A4u + (uint)ball * 24;
+        if (!MercuryRomLayout.TryReadU32(rom, template + 4, out uint oam)
+            || !MercuryRomLayout.TryReadU32(rom, oam, out uint attributes)
+            || !MercuryRomLayout.TryReadU32(rom, template + 8, out uint animations)
+            || !MercuryRomLayout.TryReadU32(rom, animations, out uint firstAnimation)
+            || !MercuryRomLayout.TryReadU32(rom, firstAnimation, out uint frame))
+            return false;
+        int shape = (int)((attributes >> 14) & 3);
+        int size = (int)((attributes >> 30) & 3);
+        if (shape == 3 || (attributes & 0x2000) != 0 || (frame & 0xFFFF) >= 0xFFFD)
+            return false;
+        (width, height) = (shape, size) switch
+        {
+            (0, 0) => (8, 8), (0, 1) => (16, 16), (0, 2) => (32, 32), (0, 3) => (64, 64),
+            (1, 0) => (16, 8), (1, 1) => (32, 8), (1, 2) => (32, 16), (1, 3) => (64, 32),
+            (2, 0) => (8, 16), (2, 1) => (8, 32), (2, 2) => (16, 32), (2, 3) => (32, 64),
+            _ => (0, 0),
+        };
+        int start = (int)(frame & 0xFFFF) * 32;
+        if (start + width * height / 2 > declaredSize)
+            return false;
+        rgba = new byte[width * height * 4];
+        for (int y = 0; y < height; y++)
+        for (int x = 0; x < width; x++)
+        {
+            int sx = (frame & (1u << 22)) != 0 ? width - 1 - x : x;
+            int sy = (frame & (1u << 23)) != 0 ? height - 1 - y : y;
+            int tile = (sy / 8) * (width / 8) + sx / 8;
+            byte packed = tiles[start + tile * 32 + (sy % 8) * 4 + (sx % 8) / 2];
+            int index = (sx & 1) == 0 ? packed & 15 : packed >> 4;
+            int color = Expand555((ushort)(colors[2 * index] | (colors[2 * index + 1] << 8)));
+            int offset = (y * width + x) * 4;
+            rgba[offset] = (byte)color;
+            rgba[offset + 1] = (byte)(color >> 8);
+            rgba[offset + 2] = (byte)(color >> 16);
+            rgba[offset + 3] = index == 0 ? (byte)0 : (byte)255;
+        }
         return true;
     }
 

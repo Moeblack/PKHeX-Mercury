@@ -45,6 +45,8 @@ public abstract class PKM : ISpeciesForm, ITrainerID32, IGeneration, IShiny, ILa
     public virtual void PrepareNickname() { }
 
     public abstract EntityContext Context { get; }
+    /// <summary>Whether retail encounter tables describe this entity format.</summary>
+    public virtual bool SupportsRetailLegality => true;
     public byte Format => Context.Generation;
     public TrainerIDFormat TrainerIDDisplayFormat => this.GetTrainerIDFormat();
 
@@ -111,6 +113,8 @@ public abstract class PKM : ISpeciesForm, ITrainerID32, IGeneration, IShiny, ILa
     public abstract byte Form { get; set; }
     public abstract bool IsEgg { get; set; }
     public abstract bool IsNicknamed { get; set; }
+    /// <summary>Default nickname resolved in this entity format's species namespace.</summary>
+    public virtual string GetDefaultNickname() => SpeciesName.GetSpeciesNameGeneration(Species, Language, Format);
     public abstract uint EXP { get; set; }
     public abstract ushort TID16 { get; set; }
     public abstract ushort SID16 { get; set; }
@@ -392,7 +396,7 @@ public abstract class PKM : ISpeciesForm, ITrainerID32, IGeneration, IShiny, ILa
         }
     }
 
-    public byte CurrentLevel { get => Experience.GetLevel(EXP, PersonalInfo.EXPGrowth); set => EXP = Experience.GetEXP(Stat_Level = value, PersonalInfo.EXPGrowth); }
+    public virtual byte CurrentLevel { get => Experience.GetLevel(EXP, PersonalInfo.EXPGrowth); set => EXP = Experience.GetEXP(Stat_Level = value, PersonalInfo.EXPGrowth); }
     public int IVTotal => IV_HP + IV_ATK + IV_DEF + IV_SPA + IV_SPD + IV_SPE;
     public int EVTotal => EV_HP + EV_ATK + EV_DEF + EV_SPA + EV_SPD + EV_SPE;
     public int MaximumIV => Math.Max(Math.Max(Math.Max(Math.Max(Math.Max(IV_HP, IV_ATK), IV_DEF), IV_SPA), IV_SPD), IV_SPE);
@@ -893,7 +897,7 @@ public abstract class PKM : ISpeciesForm, ITrainerID32, IGeneration, IShiny, ILa
     /// </summary>
     /// <param name="move">Move ID</param>
     /// <returns>Amount of PP the move has by default (no PP Ups).</returns>
-    public int GetBasePP(ushort move) => MoveInfo.GetPP(Context, move);
+    public virtual int GetBasePP(ushort move) => MoveInfo.GetPP(Context, move);
 
     /// <summary>
     /// Applies a shiny <see cref="PID"/> to the <see cref="PKM"/>.
@@ -938,7 +942,7 @@ public abstract class PKM : ISpeciesForm, ITrainerID32, IGeneration, IShiny, ILa
     /// <remarks>
     /// If a <see cref="PKM"/> originated in a generation prior to Generation 6, the <see cref="EncryptionConstant"/> is updated.
     /// </remarks>
-    public void SetPIDGender(byte gender)
+    public virtual void SetPIDGender(byte gender)
     {
         var rnd = Util.Rand;
         do PID = EntityPID.GetRandomPID(rnd, Species, gender, Version, Nature, Form, PID);
@@ -954,7 +958,7 @@ public abstract class PKM : ISpeciesForm, ITrainerID32, IGeneration, IShiny, ILa
     /// <remarks>
     /// If a <see cref="PKM"/> originated in a generation prior to Generation 6, the <see cref="EncryptionConstant"/> is updated.
     /// </remarks>
-    public void SetPIDNature(Nature nature)
+    public virtual void SetPIDNature(Nature nature)
     {
         var rnd = Util.Rand;
         do PID = EntityPID.GetRandomPID(rnd, Species, Gender, Version, nature, Form, PID);

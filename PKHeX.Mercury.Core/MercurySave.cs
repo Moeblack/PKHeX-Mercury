@@ -217,6 +217,46 @@ public sealed class MercurySave
 
     // --- export -----------------------------------------------------------
 
+    // ROM 09D3E49C copies the five pouch descriptors at 09DD7240.
+    // RAM 0203BB20..0203C748 spans section 13's parasite tail and sector 30.
+    // PC items: SaveBlock1+298, 30 four-byte records (0809A304/0809A33C).
+    private const int BagDataLength = 3112;
+    private const int InventoryDataLength = BagDataLength + (30 * 4);
+
+    public byte[] GetInventoryData()
+    {
+        var result = new byte[InventoryDataLength];
+        for (int i = 0; i < result.Length; i++)
+            result[i] = _data[InventoryFileOffset(i)];
+        return result;
+    }
+
+    public void SetInventoryData(byte[] data)
+    {
+        ArgumentNullException.ThrowIfNull(data);
+        ArgumentOutOfRangeException.ThrowIfNotEqual(data.Length, InventoryDataLength);
+        for (int i = 0; i < data.Length; i++)
+        {
+            int offset = InventoryFileOffset(i);
+            if (_data[offset] == data[i])
+                continue;
+            _data[offset] = data[i];
+            _anyEdit = true;
+            if (i >= BagDataLength)
+                _dirty[1] = true;
+        }
+    }
+
+    private int InventoryFileOffset(int index)
+    {
+        if (index >= BagDataLength)
+            return SectionOffset(1, 0x298 + index - BagDataLength);
+        const int tailLength = 0xFF0 - 0xAD8;
+        return index < tailLength
+            ? SectionOffset(13, 0xAD8 + index)
+            : (MercurySaveLayout.SpecialSectorA * MercurySaveLayout.SectorSize) + index - tailLength;
+    }
+
     /// <summary>
     /// Produce the save bytes. Unedited sections are copied verbatim (including parasite data,
     /// the inactive slot, sectors 28-31 and any RTC trailer); only modified sections get a new checksum.

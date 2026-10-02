@@ -6,6 +6,17 @@ namespace PKHeX.WinForms.Controls;
 
 public partial class ExperienceBar : UserControl
 {
+    /// <summary>
+    /// Format-specific experience curve used by non-retail formats. All levels are 1-based and clamped by <see cref="MaxLevel"/>.
+    /// </summary>
+    public interface IExperienceScale
+    {
+        int MaxLevel { get; }
+        uint GetTotalEXP(byte level);
+        uint GetEXPToNext(byte level);
+        byte GetLevel(uint exp);
+    }
+
     public EventHandler? ValueChanged;
     private bool IsDragging { get; set; }
     private string? HoverText { get; set; }
@@ -13,25 +24,49 @@ public partial class ExperienceBar : UserControl
     private byte Level { get; set; }
     public uint EXP { get; private set; }
 
+    private IExperienceScale? GrowthScale;
+    private int MaxLevel => GrowthScale?.MaxLevel ?? Experience.MaxLevel;
+
+    /// <summary>
+    /// Sets the experience curve to use. Null restores the retail behaviour for the current <see cref="Growth"/> rate.
+    /// </summary>
+    public void SetExperienceScale(IExperienceScale? scale) => GrowthScale = scale;
+
+    private uint ExpAtLevel(byte level) => GrowthScale is { } s ? s.GetTotalEXP(level) : Experience.GetEXP(level, Growth);
+    private uint ExpToNext(byte level) => GrowthScale is { } s ? s.GetEXPToNext(level) : Experience.GetEXPToLevelUp(level, Growth);
+    private byte LevelOf(uint exp) => GrowthScale is { } s ? s.GetLevel(exp) : Experience.GetLevel(exp, Growth);
+
     public ExperienceBar() => InitializeComponent();
 
-    private double CurrentPercent => Experience.GetEXPToLevelUpPercentage(Level, EXP, Growth);
+    private double CurrentPercent
+    {
+        get
+        {
+            if (Level >= MaxLevel)
+                return 0;
+            var start = ExpAtLevel(Level);
+            var next = ExpToNext(Level);
+            if (next == 0)
+                return 0;
+            return (double)(EXP - start) / next;
+        }
+    }
     private void NotifyUpdate() => ValueChanged?.Invoke(this, EventArgs.Empty);
     private int RealWidth => BorderStyle == BorderStyle.None ? Width : Width - (SystemInformation.BorderSize.Width * 2);
     private int Border => BorderStyle == BorderStyle.None ? 0 : SystemInformation.BorderSize.Width;
 
     private uint GetEXPEdgeHigh()
     {
-        var next = Experience.GetEXPToLevelUp(Level, Growth);
+        var next = ExpToNext(Level);
         if (next == 0)
             return EXP;
-        return Experience.GetEXP(Level, Growth) + next - 1;
+        return ExpAtLevel(Level) + next - 1;
     }
 
     private uint GetEXPAtWidth(int width)
     {
-        var start = Experience.GetEXP(Level, Growth);
-        var range = Experience.GetEXPToLevelUp(Level, Growth);
+        var start = ExpAtLevel(Level);
+        var range = ExpToNext(Level);
         var maxWidth = RealWidth;
         if (range == 0 || maxWidth <= 0)
             return start;
@@ -46,16 +81,16 @@ public partial class ExperienceBar : UserControl
 
     private uint GetHoverEXP(int x)
     {
-        if (Level >= Experience.MaxLevel)
+        if (Level >= MaxLevel)
             return EXP;
 
         var maxWidth = RealWidth;
         if (maxWidth <= 0)
-            return Experience.GetEXP(Level, Growth);
+            return ExpAtLevel(Level);
 
         var width = Math.Clamp(x - Border, 0, maxWidth);
         if (width == 0)
-            return Experience.GetEXP(Level, Growth);
+            return ExpAtLevel(Level);
         if (width == maxWidth)
             return GetEXPEdgeHigh();
         return GetEXPAtWidth(width);
@@ -63,13 +98,13 @@ public partial class ExperienceBar : UserControl
 
     private string GetHoverText(int x)
     {
-        var start = Experience.GetEXP(Level, Growth);
+        var start = ExpAtLevel(Level);
         var current = GetHoverEXP(x);
         if (ModifierKeys.HasFlag(Keys.Control))
             current = EXP;
 
         var gained = current - start;
-        var range = Experience.GetEXPToLevelUp(Level, Growth);
+        var range = ExpToNext(Level);
         var remain = range - gained;
         return $"{gained}/{range} (-{remain})" + Environment.NewLine + $"{current} {((float)gained*100)/range:F0}%";
     }
@@ -157,7 +192,7 @@ public partial class ExperienceBar : UserControl
 
     private bool TrySetEXPWithinLevel(int newWidth)
     {
-        if (Level >= Experience.MaxLevel)
+        if (Level >= MaxLevel)
             return false;
 
         var maxWidth = RealWidth;
@@ -191,7 +226,7 @@ public partial class ExperienceBar : UserControl
         {
             if (ModifierKeys.HasFlag(Keys.Control))
                 DownlevelNoEXP();
-            else if (EXP != Experience.GetEXP(Level, Growth))
+            else if (EXP != ExpAtLevel(Level))
                 EdgeLow();
             else
                 Underflow();
@@ -199,7 +234,7 @@ public partial class ExperienceBar : UserControl
             return true;
         }
 
-        if (Level >= Experience.MaxLevel)
+        if (Level >= MaxLevel)
             return true;
 
         if (ModifierKeys.HasFlag(Keys.Shift))
@@ -217,7 +252,7 @@ public partial class ExperienceBar : UserControl
 
     private void OnScroll(object? sender, MouseEventArgs e)
     {
-        if ((Level >= Experience.MaxLevel && e.Delta > 0) || (Level <= Experience.MinLevel && e.Delta < 0 && PAN_ExpPercent.Width == 0))
+        if ((Level >= MaxLevel && e.Delta > 0) || (Level <= Experience.MinLevel && e.Delta < 0 && PAN_ExpPercent.Width == 0))
             return;
 
         int value = 0;
@@ -258,7 +293,7 @@ public partial class ExperienceBar : UserControl
         }
         else
         {
-            var range = Experience.GetEXPToLevelUp(Level, Growth);
+            var range = ExpToNext(Level);
             var pixelsPerEXP = (double)maxWidth / range;
 
             double delta = newWidth - currentWidth;
@@ -271,7 +306,7 @@ public partial class ExperienceBar : UserControl
 
             // don't allow clicking to change levels, in the event the user is trying to manually edge via clicking.
             // allow scrolling to change levels over/underflow.
-            if (!scroll && Experience.GetLevel(newEXP, Growth) != Level)
+            if (!scroll && LevelOf(newEXP) != Level)
                 return;
             EXP = newEXP;
         }
@@ -282,36 +317,36 @@ public partial class ExperienceBar : UserControl
     {
         if (Level <= Experience.MinLevel)
             return;
-        EXP = Experience.GetEXP((byte)(Level - 1), Growth);
+        EXP = ExpAtLevel((byte)(Level - 1));
     }
 
     public void Overflow()
     {
-        if (Level >= Experience.MaxLevel)
+        if (Level >= MaxLevel)
             return;
-        EXP = Experience.GetEXP((byte)(Level + 1), Growth);
+        EXP = ExpAtLevel((byte)(Level + 1));
     }
 
     public void Underflow()
     {
         if (Level <= Experience.MinLevel)
             return;
-        EXP = Experience.GetEXP(Level, Growth) - 1;
+        EXP = ExpAtLevel(Level) - 1;
     }
 
     public void EdgeLow()
     {
-        EXP = Experience.GetEXP(Level, Growth);
+        EXP = ExpAtLevel(Level);
     }
 
     public void EdgeHigh()
     {
-        if (Level >= Experience.MaxLevel)
+        if (Level >= MaxLevel)
             return;
         EXP = GetEXPEdgeHigh();
     }
 
-    public void Update(uint exp, byte growth) => Update(exp, growth, Experience.GetLevel(exp, growth));
+    public void Update(uint exp, byte growth) => Update(exp, growth, GrowthScale is { } s ? s.GetLevel(exp) : Experience.GetLevel(exp, growth));
 
     public void Update(uint exp, byte growth, byte level)
     {
@@ -319,7 +354,7 @@ public partial class ExperienceBar : UserControl
         Growth = growth;
         Level = level;
 
-        if (level >= Experience.MaxLevel)
+        if (level >= MaxLevel)
         {
             PAN_ExpPercent.Width = 0;
             return;

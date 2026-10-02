@@ -2,6 +2,7 @@ using PKHeX.Core;
 using PKHeX.Drawing;
 using PKHeX.Drawing.Misc;
 using PKHeX.Drawing.PokeSprite;
+using PKHeX.Mercury.Core;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
@@ -271,12 +272,23 @@ public sealed partial class PKMEditor : UserControl, IMainEditor
         // Load Extra Byte List
         SetPKMFormatExtraBytes(pk);
         (GetFieldsfromPKM, GetPKMfromFields) = GetLoadSet(pk);
+        var mercuryMoveData = pk is MercuryPKM mercury ? mercury.GameData : null;
         foreach (var move in Moves)
+        {
             move.SetContext(pk.Context);
+            move.SetMercuryMoveSource(mercuryMoveData);
+        }
         TB_Nickname.DisplayContext = TB_OT.DisplayContext = TB_HT.DisplayContext = pk.Context;
     }
 
-    private (Action Load, Func<PKM> Set) GetLoadSet(PKM pk) => GetLoadSet(pk.Context);
+    private (Action Load, Func<PKM> Set) GetLoadSet(PKM pk)
+    {
+        // A Mercury entity shares the Gen3 context but must NOT go through the retail PK3 serialization,
+        // which requires the sealed G3PKM layout. Select the format-specific plumbing first.
+        if (pk is MercuryPKM)
+            return (PopulateFieldsMercury, PrepareMercury);
+        return GetLoadSet(pk.Context);
+    }
 
     private (Action Load, Func<PKM> Set) GetLoadSet(EntityContext context) => context switch
     {
@@ -316,6 +328,8 @@ public sealed partial class PKMEditor : UserControl, IMainEditor
             Hidden_Main.Focus();
 
         var input = pk;
+        if (pk is MercuryPKM && Entity is MercuryPKM)
+            skipConversionCheck = true; // Mercury ids must never pass through the retail entity converter
         if (!skipConversionCheck && !EntityConverter.TryMakePKMCompatible(pk, Entity, out var c, out pk))
         {
             var msg = c.GetDisplayString(input, Entity.GetType());
@@ -358,6 +372,12 @@ public sealed partial class PKMEditor : UserControl, IMainEditor
     {
         if (!FieldsLoaded)
             return;
+
+        if (Entity is MercuryPKM mercury)
+        {
+            UpdateMercuryLegality(mercury);
+            return;
+        }
 
         Legality = la ?? new LegalityAnalysis(Entity, RequestSaveFile.Personal);
         if (!Legality.Parsed || HaX || Entity.Species == 0)
@@ -467,6 +487,13 @@ public sealed partial class PKMEditor : UserControl, IMainEditor
 
     private void SetForms()
     {
+        if (Entity is MercuryPKM mercury)
+        {
+            UC_Gender.AllowClick = mercury.PersonalInfo.IsDualGender;
+            CB_Form.Enabled = CB_Form.Visible = Label_Form.Visible = false;
+            return;
+        }
+
         var species = Entity.Species;
         var pi = RequestSaveFile.Personal[species];
         UC_Gender.AllowClick = pi.IsDualGender;
@@ -507,6 +534,14 @@ public sealed partial class PKMEditor : UserControl, IMainEditor
 
         bool tmp = FieldsLoaded;
         FieldsLoaded = false;
+        if (Entity is MercuryPKM mercury)
+        {
+            var mercuryItems = BuildMercuryAbilityList(mercury);
+            CB_Ability.DataSource = mercuryItems;
+            CB_Ability.SelectedIndex = Math.Clamp(ability, 0, mercuryItems.Count - 1);
+            FieldsLoaded = tmp;
+            return;
+        }
         var items = GameInfo.FilteredSources.GetAbilityList(Entity.PersonalInfo);
         if (Entity is { Context: EntityContext.Gen5, Species: (ushort)Species.Basculin, Form: 1 })
             items = [.. items, FilteredGameDataSource.GetAbilityItem(GameInfo.Strings.abilitylist, (int)Ability.Reckless, '*')];
@@ -635,7 +670,7 @@ public sealed partial class PKMEditor : UserControl, IMainEditor
             Stats.SetATKIVGender(gender);
             UpdateIsShiny();
         }
-        else if (Entity.Format <= 4)
+        else if (Entity.Format <= 4 && Entity is not MercuryPKM)
         {
             Entity.Version = (GameVersion)WinFormsUtil.GetIndex(CB_GameOrigin);
             Entity.Nature = (Nature)WinFormsUtil.GetIndex(CB_Nature);
@@ -692,15 +727,19 @@ public sealed partial class PKMEditor : UserControl, IMainEditor
     private void ClickBall(object sender, EventArgs e)
     {
         Entity.Ball = (byte)WinFormsUtil.GetIndex(CB_Ball);
-        if ((ModifierKeys & Keys.Alt) != 0)
+        if (Entity is not MercuryPKM)
         {
-            CB_Ball.SelectedValue = (int)Ball.Poke;
-            return;
-        }
-        if ((ModifierKeys & Keys.Shift) != 0)
-        {
-            CB_Ball.SelectedValue = (int)BallApplicator.ApplyBallLegalByColor(Entity);
-            return;
+            // Retail-only shortcuts use retail legality/encounter data.
+            if ((ModifierKeys & Keys.Alt) != 0)
+            {
+                CB_Ball.SelectedValue = (int)Ball.Poke;
+                return;
+            }
+            if ((ModifierKeys & Keys.Shift) != 0)
+            {
+                CB_Ball.SelectedValue = (int)BallApplicator.ApplyBallLegalByColor(Entity);
+                return;
+            }
         }
 
         using var frm = new BallBrowser();
@@ -719,6 +758,8 @@ public sealed partial class PKMEditor : UserControl, IMainEditor
     {
         if (HaX)
             return;
+        if (Entity is MercuryPKM)
+            return; // retail met-location suggestion uses national encounter tables
 
         Entity = PreparePKM();
         UpdateLegality(args: UpdateLegalityArgs.SkipMoveRepopulation);
@@ -767,6 +808,9 @@ public sealed partial class PKMEditor : UserControl, IMainEditor
 
     private void ClickMoves(object? sender, EventArgs e)
     {
+        if (Entity is MercuryPKM)
+            return; // retail learnset suggestion uses national move tables
+
         UpdateLegality(args: UpdateLegalityArgs.SkipMoveRepopulation);
         if (sender == GB_CurrentMoves)
         {
@@ -789,6 +833,8 @@ public sealed partial class PKMEditor : UserControl, IMainEditor
 
     private bool SetSuggestedMoves(bool random = false, bool silent = false)
     {
+        if (Entity is MercuryPKM)
+            return false;
         Span<ushort> moves = stackalloc ushort[4];
         Entity.GetMoveSet(moves, random);
         if (moves[0] == 0)
@@ -949,6 +995,11 @@ public sealed partial class PKMEditor : UserControl, IMainEditor
 
     private void UpdateBall(object sender, EventArgs e)
     {
+        if (GameInfo.Strings.IsMercury)
+        {
+            PB_Ball.Image = BallBrowser.GetMercuryBallPreview((byte)WinFormsUtil.GetIndex(CB_Ball), (Entity as MercuryPKM)?.GameData);
+            return;
+        }
         PB_Ball.Image = SpriteUtil.GetBallSprite((byte)WinFormsUtil.GetIndex(CB_Ball));
     }
 
@@ -960,14 +1011,17 @@ public sealed partial class PKMEditor : UserControl, IMainEditor
 
         var pi = Entity.PersonalInfo;
         var gr = pi.EXPGrowth;
+        var maxLevel = Entity is MercuryPKM ? 100 : Experience.MaxLevel;
+        byte LevelOfExp(uint e) => Entity is MercuryPKM mercury ? mercury.GameData.GetLevel(mercury.Species, e) : Experience.GetLevel(e, gr);
+        uint ExpOfLevel(byte l) => Entity is MercuryPKM mercury ? mercury.GameData.GetExperience(mercury.Species, l) : Experience.GetEXP(l, gr);
         if (sender == TB_EXP)
         {
             // Change the Level
             var expInput = Util.ToUInt32(TB_EXP.Text);
             var expCalc = expInput;
-            var lvlExp = Experience.GetLevel(expInput, gr);
-            if (lvlExp == Experience.MaxLevel)
-                expCalc = Experience.GetEXP(Experience.MaxLevel, gr);
+            var lvlExp = LevelOfExp(expInput);
+            if (lvlExp == maxLevel)
+                expCalc = ExpOfLevel((byte)maxLevel);
 
             var lvlInput = Experience.ClampLevel((byte)Util.ToInt32(TB_Level.Text));
             if (lvlInput != lvlExp)
@@ -981,11 +1035,11 @@ public sealed partial class PKMEditor : UserControl, IMainEditor
         {
             // Change the XP
             var input = Util.ToInt32(TB_Level.Text);
-            var level = (byte)Math.Clamp(input, Experience.MinLevel, Experience.MaxLevel);
+            var level = (byte)Math.Clamp(input, Experience.MinLevel, maxLevel);
             if (input != level && !string.IsNullOrWhiteSpace(TB_Level.Text))
                 TB_Level.Text = level.ToString();
 
-            var expCalc = Experience.GetEXP(level, gr);
+            var expCalc = ExpOfLevel(level);
             TB_EXP.Text = expCalc.ToString();
             ExperienceBar.Update(expCalc, gr, level);
         }
@@ -1002,6 +1056,23 @@ public sealed partial class PKMEditor : UserControl, IMainEditor
             return;
         if (FieldsLoaded)
             Entity.PID = Util.GetHexValue(TB_PID.Text);
+
+        if (Entity is MercuryPKM mercuryPid)
+        {
+            // Mercury derives nature/gender/ability from PID and the species ability table; the retail
+            // helper methods use national tables, so apply the abstract PKM property setters instead.
+            if (sender == UC_Gender)
+                mercuryPid.Gender = mercuryPid.Gender;
+            else if (sender == CB_Nature && mercuryPid.Nature != (Nature)WinFormsUtil.GetIndex(CB_Nature))
+                mercuryPid.Nature = (Nature)WinFormsUtil.GetIndex(CB_Nature);
+            else if (sender == BTN_RerollPID)
+                mercuryPid.Nature = mercuryPid.Nature;
+            else if (sender == CB_Ability)
+                mercuryPid.RefreshAbility(CB_Ability.SelectedIndex);
+
+            TB_PID.Text = mercuryPid.PID.ToString("X8");
+            return;
+        }
 
         if (sender == UC_Gender)
             Entity.SetPIDGender(Entity.Gender);
@@ -1066,7 +1137,7 @@ public sealed partial class PKMEditor : UserControl, IMainEditor
         SetAbilityList();
 
         // Gender Forms
-        if (WinFormsUtil.GetIndex(CB_Species) == (int)Species.Unown && FieldsLoaded)
+        if (Entity is not MercuryPKM && WinFormsUtil.GetIndex(CB_Species) == (int)Species.Unown && FieldsLoaded)
         {
             if (Entity.Format == 3)
             {
@@ -1242,7 +1313,9 @@ public sealed partial class PKMEditor : UserControl, IMainEditor
             return;
 
         // Recalculate EXP for Given Level
-        uint exp = Experience.GetEXP(Entity.CurrentLevel, Entity.PersonalInfo.EXPGrowth);
+        uint exp = Entity is MercuryPKM mercury
+            ? mercury.GameData.GetExperience(mercury.Species, mercury.CurrentLevel)
+            : Experience.GetEXP(Entity.CurrentLevel, Entity.PersonalInfo.EXPGrowth);
         TB_EXP.Text = exp.ToString();
 
         // Check for Gender Changes
@@ -1301,6 +1374,21 @@ public sealed partial class PKMEditor : UserControl, IMainEditor
 
     private void ReloadMetLocations(GameVersion version, EntityContext context)
     {
+        if (Entity is MercuryPKM)
+        {
+            // No proven Mercury location table: explicit internal ids only (never retail place names).
+            var list = BuildMercuryLocationList();
+            CB_MetLocation.DataSource = new BindingSource(list, string.Empty);
+            CB_EggLocation.DataSource = new BindingSource(list, string.Empty);
+            CB_MetLocation.DropDownWidth = CB_EggLocation.DropDownWidth = 120;
+            if (FieldsLoaded)
+            {
+                CB_MetLocation.SelectedValue = (int)Entity.MetLocation;
+                CB_EggLocation.SelectedValue = (int)Entity.EggLocation;
+            }
+            return;
+        }
+
         var metList = GameInfo.GetLocationList(version, context, egg: false);
         CB_MetLocation.DataSource = new BindingSource(metList, string.Empty);
         CB_MetLocation.DropDownWidth = GetWidth(metList, CB_MetLocation.Font);
@@ -1390,6 +1478,13 @@ public sealed partial class PKMEditor : UserControl, IMainEditor
         if (species is 0 || species > Entity.MaxSpeciesID)
             return;
 
+        if (Entity is MercuryPKM mercury)
+        {
+            if (!string.Equals(update, mercury.GameData.SpeciesName(species), StringComparison.Ordinal))
+                CHK_NicknamedFlag.Checked = true;
+            return;
+        }
+
         if (!IsPossibleNotNicknamed(Entity, update))
             CHK_NicknamedFlag.Checked = true;
     }
@@ -1444,6 +1539,20 @@ public sealed partial class PKMEditor : UserControl, IMainEditor
         }
 
         var current = TB_Nickname.Text;
+        if (Entity is MercuryPKM mercury)
+        {
+            // Mercury names are ROM Unicode strings; retail species-name tables index national ids.
+            if (CHK_IsEgg.Checked)
+            {
+                TB_Nickname.Text = SpeciesName.GetEggName(WinFormsUtil.GetIndex(CB_Language), Entity.Format);
+            }
+            else if (sender == CB_Language || string.Equals(current, mercury.GameData.SpeciesName(species), StringComparison.Ordinal))
+            {
+                TB_Nickname.Text = mercury.GameData.SpeciesName(species);
+            }
+            return;
+        }
+
         if (IsPossibleNotNicknamed(Entity, current))
             return;
 
@@ -1778,7 +1887,9 @@ public sealed partial class PKMEditor : UserControl, IMainEditor
         ValidateComboBox(sender, new CancelEventArgs());
         if (sender == CB_Ability)
         {
-            if (Entity.Format >= 6)
+            if (Entity is MercuryPKM)
+                UpdateRandomPID(sender, e); // applies slot 0/1/2 including the hidden-ability marker
+            else if (Entity.Format >= 6)
                 TB_AbilityNumber.Text = (1 << CB_Ability.SelectedIndex).ToString();
             else if (Entity.Format <= 5 && CB_Ability.SelectedIndex < 2) // Format <= 5, not hidden
                 UpdateRandomPID(sender, e);
@@ -1845,14 +1956,28 @@ public sealed partial class PKMEditor : UserControl, IMainEditor
             return;
 
         var (text, value) = item;
-        var valid = LegalMoveSource.Info.CanLearn((ushort)value) && !HaX;
+        bool valid;
+        byte type;
+        if (Entity is MercuryPKM mercury)
+        {
+            valid = false; // No legality classification while Mercury checks are paused.
+            type = (uint)value < (uint)mercury.GameData.Moves.Count ? mercury.GameData.Moves[value].Type : (byte)0;
+        }
+        else
+        {
+            valid = LegalMoveSource.Info.CanLearn((ushort)value) && !HaX;
+            type = MoveInfo.GetType((ushort)value, Entity.Context);
+        }
 
         var highlight = (e.State & DrawItemState.Selected) != 0;
-        var brush = highlight ? SystemBrushes.MenuHighlight : (valid ? BrushLegal : SystemBrushes.ControlLightLight);
+        var brush = highlight ? SystemBrushes.MenuHighlight
+            : Entity is MercuryPKM ? SystemBrushes.ControlLightLight
+            : valid ? BrushLegal : SystemBrushes.ControlLightLight;
         var textColor = highlight && !Application.IsDarkModeEnabled ? SystemColors.HighlightText : SystemColors.ControlText;
 
-        var type = MoveInfo.GetType((ushort)value, Entity.Context);
-        var moveTypeIcon = TypeSpriteUtil.GetTypeSpriteIconSmall(type);
+        var moveTypeIcon = Entity is MercuryPKM source
+            ? (uint)value < (uint)source.GameData.Moves.Count ? MercuryIntegration.GetTypeImage(source.GameData, type) : null
+            : TypeSpriteUtil.GetTypeSpriteIconSmall(type);
         DrawMoveRectangle(e, brush, text, textColor, moveTypeIcon);
     }
 
@@ -2073,6 +2198,8 @@ public sealed partial class PKMEditor : UserControl, IMainEditor
 
         DEV_Ability.Enabled = DEV_Ability.Visible = DEV_Ability.TabStop = (format > 3 && HaX) || t is PA9;
         ToggleInterface(Entity.Format);
+        if (t is MercuryPKM)
+            ApplyMercuryInterface();
     }
 
     private void ToggleSecrets(bool hidden, byte format)
@@ -2164,7 +2291,7 @@ public sealed partial class PKMEditor : UserControl, IMainEditor
             Hidden_TC.TabPages.Remove(Hidden_Cosmetic);
             TC_Editor.TabPages.Remove(Tab_Cosmetic);
         }
-        else if (Entity.Format > 2 && !Hidden_TC.TabPages.Contains(Hidden_Cosmetic))
+        else if (Entity.Format > 2 && Entity is not MercuryPKM && !Hidden_TC.TabPages.Contains(Hidden_Cosmetic))
         {
             Hidden_TC.TabPages.Insert(4, Hidden_Cosmetic);
             TC_Editor.TabPages.Insert(4, Tab_Cosmetic);

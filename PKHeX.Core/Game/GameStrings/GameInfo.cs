@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 
 namespace PKHeX.Core;
@@ -14,6 +15,14 @@ public static class GameInfo
     }
 
     public static string CurrentLanguage { get; set; } = GameLanguage.DefaultLanguage;
+
+    /// <summary>
+    /// Optional factory that produces a save-format-specific <see cref="GameStrings"/> instance.
+    /// Returns null to fall back to the cached retail resources for the requested language.
+    /// </summary>
+    /// <remarks>Set by the UI layer so that non-retail formats (e.g. Mercury) can supply internal id tables.</remarks>
+    public static Func<SaveFile, string, GameStrings?>? SaveSpecificStringsFactory { get; set; }
+
     public static readonly IReadOnlyList<string> GenderSymbolUnicode = ["♂", "♀", "-"];
     public static readonly IReadOnlyList<string> GenderSymbolASCII = ["M", "F", "-"];
     private static GameStrings _strings = GetStrings(CurrentLanguage);
@@ -27,6 +36,18 @@ public static class GameInfo
     }
 
     public static GameStrings GetStrings(string lang) => Languages.Get(lang);
+
+    /// <summary>
+    /// Gets the strings to use for the provided save file, honoring a registered
+    /// <see cref="SaveSpecificStringsFactory"/> (format-specific internal id tables), else the retail cache.
+    /// </summary>
+    public static GameStrings GetStrings(string lang, SaveFile? sav)
+    {
+        if (sav is not null && SaveSpecificStringsFactory?.Invoke(sav, lang) is { } specific)
+            return specific;
+        return Languages.Get(lang);
+    }
+
 
     public static string GetVersionName(GameVersion version)
     {

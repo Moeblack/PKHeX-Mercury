@@ -22,6 +22,13 @@ public static class SpriteUtil
     public static SpriteBuilder Spriter { get; private set; } = SB8s;
 
     /// <summary>
+    /// Optional format-specific base sprite source. When it returns a bitmap, that bitmap replaces the
+    /// retail sprite for the entity; the native slot/overlay layout is retained by the callers.
+    /// </summary>
+    /// <remarks>Set by the UI layer for non-retail formats (e.g. Mercury ROM tiles). Return null to use retail rendering.</remarks>
+    public static Func<PKM, Bitmap?>? CustomSpriteSource { get; set; }
+
+    /// <summary>
     /// Changes the builder mode to the requested mode.
     /// </summary>
     /// <param name="mode">Requested sprite builder mode</param>
@@ -68,6 +75,9 @@ public static class SpriteUtil
 
     private static Bitmap GetSprite(PKM pk)
     {
+        if (CustomSpriteSource?.Invoke(pk) is { } custom)
+            return custom;
+
         var formarg = pk is IFormArgument f ? f.FormArgument : 0;
         var shiny = ShinyExtensions.GetType(pk);
 
@@ -109,7 +119,7 @@ public static class SpriteUtil
                 if (TeraTypeUtil.IsOverrideValid((byte)type))
                     ApplyTeraColor((byte)type, sprite, SpriteBuilder.ShowTeraType);
             }
-            if (visibility.HasFlag(SlotVisibilityType.CheckLegalityIndicate))
+            if (pk.SupportsRetailLegality && visibility.HasFlag(SlotVisibilityType.CheckLegalityIndicate))
             {
                 var la = pk.GetType() == sav.PKMType // quick sanity check
                     ? new LegalityAnalysis(pk, sav.Personal, storage)

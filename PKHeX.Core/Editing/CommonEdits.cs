@@ -43,7 +43,7 @@ public static class CommonEdits
         public string ClearNickname()
         {
             pk.IsNicknamed = false;
-            string nick = SpeciesName.GetSpeciesNameGeneration(pk.Species, pk.Language, pk.Format);
+            string nick = pk.GetDefaultNickname();
             pk.SetString(pk.NicknameTrash, nick, nick.Length, StringConverterOption.None);
             if (pk is GBPKM pk12)
                 pk12.SetNotNicknamed();

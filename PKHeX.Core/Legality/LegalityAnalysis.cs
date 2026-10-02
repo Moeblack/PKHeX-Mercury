@@ -114,6 +114,8 @@ public sealed class LegalityAnalysis
         SlotOrigin = source;
 
         Info = new LegalInfo(pk, Parse);
+        if (!pk.SupportsRetailLegality)
+            return; // Unsupported formats remain unparsed, never implicitly valid.
 #if SUPPRESS
         try
 #endif

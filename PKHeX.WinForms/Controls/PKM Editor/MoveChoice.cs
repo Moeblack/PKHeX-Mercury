@@ -2,12 +2,14 @@ using System;
 using System.Windows.Forms;
 using PKHeX.Core;
 using PKHeX.Drawing.Misc;
+using PKHeX.Mercury.Core;
 
 namespace PKHeX.WinForms.Controls;
 
 public partial class MoveChoice : UserControl
 {
     private EntityContext Context;
+    private MercuryGameData? MercuryData;
 
     public MoveChoice()
     {
@@ -21,6 +23,11 @@ public partial class MoveChoice : UserControl
     public bool HideLegality { private get; set; }
     public void SetContext(EntityContext context) => Context = context;
 
+    /// <summary>
+    /// Sets the format-specific move table (Mercury internal ids) used for the type icon; null uses retail <see cref="MoveInfo"/>.
+    /// </summary>
+    public void SetMercuryMoveSource(MercuryGameData? data) => MercuryData = data;
+
     private void UpdateTypeSprite(int value)
     {
         if (value <= 0)
@@ -29,7 +36,13 @@ public partial class MoveChoice : UserControl
             return;
         }
 
-        var type = MoveInfo.GetType((ushort)value, Context);
+        if (MercuryData is { } md)
+        {
+            PB_Type.Image = (uint)value < (uint)md.Moves.Count
+                ? MercuryIntegration.GetTypeImage(md, md.Moves[value].Type) : null;
+            return;
+        }
+        byte type = MoveInfo.GetType((ushort)value, Context);
         PB_Type.Image = TypeSpriteUtil.GetTypeSpriteIconSmall(type);
     }
 
@@ -52,6 +65,20 @@ public partial class MoveChoice : UserControl
         }
         PB_Triangle.Visible = true;
         PB_Triangle.Image = MoveDisplayState.GetMoveImage(!move.Valid, entity, i);
+    }
+
+    /// <summary>
+    /// Sets the move legality triangle for a format-specific (Mercury) move, without touching retail move tables.
+    /// </summary>
+    public void SetMercuryLegality(bool valid)
+    {
+        if (HideLegality)
+        {
+            PB_Triangle.Visible = false;
+            return;
+        }
+        PB_Triangle.Visible = true;
+        PB_Triangle.Image = valid ? null : PKHeX.Drawing.PokeSprite.SpriteUtil.GetLegalIndicator(false);
     }
 
     public void HealPP(PKM pk)

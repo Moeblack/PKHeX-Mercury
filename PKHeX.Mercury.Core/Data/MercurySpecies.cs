@@ -24,6 +24,36 @@ public sealed class MercurySpecies
 
     public byte BaseFriendship { get; init; }
 
+    /// <summary>Primary type id; secondary type is <see cref="Type2"/> (equal to <see cref="Type1"/> when single-typed).</summary>
+    public byte Type1 { get; set; }
+
+    /// <summary>Secondary type id.</summary>
+    public byte Type2 { get; set; }
+
+    /// <summary>Effort-value yield in the fixed order HP, Atk, Def, Spe, SpA, SpD.</summary>
+    public int[] EVYield { get; set; } = new int[6];
+
+    /// <summary>Species egg group 1 (ROM value, 0 = none).</summary>
+    public int EggGroup1 { get; set; }
+
+    /// <summary>Species egg group 2 (ROM value, 0 = none).</summary>
+    public int EggGroup2 { get; set; }
+
+    /// <summary>Catch rate (0..255).</summary>
+    public byte CatchRate { get; set; }
+
+    /// <summary>Egg hatch cycles (ROM value).</summary>
+    public byte HatchCycles { get; set; }
+
+    /// <summary>Base experience yield awarded on defeat.</summary>
+    public int BaseEXP { get; set; }
+
+    /// <summary>Body color index (ROM value).</summary>
+    public int Color { get; set; }
+
+    /// <summary>Safari/flee rate (ROM value).</summary>
+    public int EscapeRate { get; set; }
+
     /// <summary>Three stored ability ids (ability1, ability2, hidden). 0 = none.</summary>
     public int[] Abilities { get; init; } = new int[3];
 

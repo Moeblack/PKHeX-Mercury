@@ -2,6 +2,7 @@ using System;
 using System.Linq;
 using System.Windows.Forms;
 using PKHeX.Core;
+using PKHeX.Mercury.Core;
 
 namespace PKHeX.WinForms;
 
@@ -123,6 +124,28 @@ public partial class SAV_SimpleTrainer : Form
 
             TB_OTName.Click += (_, _) => ClickOT(small.OriginalTrainerTrash, TB_OTName);
         }
+        if (SAV is MercurySaveFile mercury)
+        {
+            // Mercury stores a FRLG-style trainer block: name/gender/id/money/time and coins only.
+            GB_Map.Visible = false;
+            GB_Options.Visible = false;
+            L_Started.Visible = L_Fame.Visible = false;
+            CAL_AdventureStartDate.Visible = CAL_HoFDate.Visible = false;
+            CAL_AdventureStartTime.Visible = CAL_HoFTime.Visible = false;
+
+            // Reuse the coins controls in the same style as the Gen5 branch.
+            foreach (var control in new Control[] { L_Coins, B_MaxCoins, MT_Coins })
+            {
+                var pos = control.Location;
+                GB_Badges.Controls.Add(control);
+                control.Location = pos;
+                control.Visible = true;
+            }
+            L_Coins.Text = "金币";
+            GB_Badges.Text = "金币";
+            MT_Coins.Text = mercury.Coins.ToString();
+        }
+
         if (SAV is SAV3Colosseum or SAV3XD)
         {
             GB_Map.Visible = false;
@@ -187,7 +210,7 @@ public partial class SAV_SimpleTrainer : Form
 
         for (int i = 0; i < cba.Length; i++)
         {
-            cba[i].Visible = true;
+            cba[i].Visible = SAV is not MercurySaveFile; // badges are not proven storage for Mercury
             cba[i].Checked = (badgeval & (1 << i)) != 0;
         }
 
@@ -313,8 +336,16 @@ public partial class SAV_SimpleTrainer : Form
             s.Region = WinFormsUtil.GetIndex(CB_Region);
         }
 
-        SAV.SecondsToStart = (uint)DateUtil.GetSecondsFrom2000(CAL_AdventureStartDate.Value, CAL_AdventureStartTime.Value);
-        SAV.SecondsToFame = (uint)DateUtil.GetSecondsFrom2000(CAL_HoFDate.Value, CAL_HoFTime.Value);
+        if (SAV is MercurySaveFile mercurySave)
+        {
+            mercurySave.Coins = Math.Min(Util.ToUInt32(MT_Coins.Text), 9999u);
+        }
+
+        if (SAV is not MercurySaveFile)
+        {
+            SAV.SecondsToStart = (uint)DateUtil.GetSecondsFrom2000(CAL_AdventureStartDate.Value, CAL_AdventureStartTime.Value);
+            SAV.SecondsToFame = (uint)DateUtil.GetSecondsFrom2000(CAL_HoFDate.Value, CAL_HoFTime.Value);
+        }
 
         Origin.CopyChangesFrom(SAV);
         Close();

@@ -5,6 +5,7 @@ using System.Linq;
 using System.Windows.Forms;
 using PKHeX.Core;
 using PKHeX.Drawing.PokeSprite;
+using PKHeX.Mercury.Core;
 using PKHeX.WinForms.Controls;
 using static PKHeX.Core.MessageStrings;
 
@@ -326,6 +327,18 @@ public sealed partial class SAV_Inventory : Form
 
     private void UpdateSprite(DataGridViewCellCollection cells, int itemID)
     {
+        if (Origin is MercurySaveFile mercury)
+        {
+            // Mercury stores its own item-table indices; the retail ItemConverter would misread them.
+            cells[ColumnSprite].Value = itemID == 0
+                ? _none
+                : MercuryIntegration.GetItemImage(mercury.GameData, itemID);
+            cells[ColumnSprite].ToolTipText = itemID != 0 && cells[ColumnSprite].Value is null
+                ? $"当前 ROM 图像资源无法解码（道具编号 {itemID}）。"
+                : string.Empty;
+            return;
+        }
+
         var context = Origin.Context;
         itemID = ItemConverter.GetItemDisplay(itemID, context);
         cells[ColumnSprite].Value = itemID == 0 ? _none : SpriteUtil.Spriter.GetItemSprite(itemID, context);

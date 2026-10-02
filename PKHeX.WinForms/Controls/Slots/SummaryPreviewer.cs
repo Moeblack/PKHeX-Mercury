@@ -5,6 +5,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 using PKHeX.Core;
+using PKHeX.Mercury.Core;
 
 namespace PKHeX.WinForms.Controls;
 
@@ -20,6 +21,13 @@ public sealed class SummaryPreviewer
     {
         if (pk.Species == 0)
         {
+            Clear();
+            return;
+        }
+
+        if (pk is MercuryPKM)
+        {
+            // Hover preview/encounter summary resolves names & legality through retail national tables.
             Clear();
             return;
         }

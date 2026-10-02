@@ -51,6 +51,10 @@ internal static class Program
         settings.LocalResources.SetLocalPath(WorkingDirectory);
         StartupUtil.ReloadSettings(settings);
 
+        // Register the Mercury format (profile + save reader + sprite/string sources) before any file
+        // arguments are processed, so a Mercury save passed on the command line is recognized.
+        MercuryIntegration.Initialize();
+
         SplashScreen? splash = null;
         if (!settings.Startup.SkipSplashScreen)
         {

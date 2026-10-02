@@ -2,6 +2,7 @@ using System;
 using System.ComponentModel;
 using System.Windows.Forms;
 using PKHeX.Core;
+using PKHeX.Mercury.Core;
 
 using static PKHeX.Core.MessageStrings;
 
@@ -120,6 +121,14 @@ public partial class ContextMenuSAV : UserControl
         var sav = info.View.SAV;
         var pk = info.Slot.Read(sav);
         var type = info.Slot.Type;
+
+        if (pk is MercuryPKM mercury)
+        {
+            // Explicit Mercury report; retail encounter tables must not run on internal ids.
+            MercuryLegality.Show(FindForm()!, mercury);
+            return;
+        }
+
         var la = new LegalityAnalysis(pk, sav.Personal, type);
         RequestEditorLegality?.Invoke(la);
     }

@@ -1,6 +1,7 @@
 using System;
 using System.Windows.Forms;
 using PKHeX.Core;
+using PKHeX.Mercury.Core;
 
 namespace PKHeX.WinForms.Controls;
 
@@ -36,6 +37,7 @@ public partial class PKMEditor
 
         var pi = pk.PersonalInfo;
         var growth = pi.EXPGrowth;
+        ExperienceBar.SetExperienceScale(pk is MercuryPKM mercury ? new MercuryExperienceScale(mercury) : null);
         ExperienceBar.Update(exp, growth); // don't trust level
     }
 
@@ -244,10 +246,13 @@ public partial class PKMEditor
 
         TID_Trainer.LoadTrainer(pk, pk.Format);
 
-        // Load Extrabyte Value
-        var offset = Convert.ToInt32(CB_ExtraBytes.Text, 16);
-        var value = pk.Data[offset];
-        TB_ExtraByte.Text = value.ToString();
+        // Load Extrabyte Value (formats without an extra-byte block have no entry selected).
+        if (CB_ExtraBytes.Items.Count != 0)
+        {
+            int offset = Convert.ToInt32(CB_ExtraBytes.Text, 16);
+            var value = pk.Data[offset];
+            TB_ExtraByte.Text = value.ToString();
+        }
     }
 
     private void SaveMisc3(PKM pk)
