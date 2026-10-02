@@ -9,8 +9,10 @@ namespace PKHeX.Mercury.Core;
 /// The canonical in-memory buffer (<see cref="PKM.Data"/>, 100 bytes) is the actual Mercury party/expanded
 /// record (<c>ToPartyBytes</c> layout): expanded 80 bytes at 0x00-0x4F followed by the 20-byte party tail
 /// at 0x50-0x63. Every read parses that buffer through <see cref="MercuryPokemon.FromParty"/> and every write
-/// re-serializes through <see cref="MercuryPokemon.ToPartyBytes"/>, so there is a single source of truth and
-/// no parallel stale copy. <see cref="MercuryPokemon"/> stays the sole binary read/write definition.
+/// re-serializes through <see cref="MercuryPokemon.ToPartyBytes"/>. The only exception is an unknown boxed
+/// type-override value with no valid party encoding: a guarded 5-bit sidecar preserves it for boxed export
+/// until species/type changes. It does not create a valid party encoding or a second full record.
+/// <see cref="MercuryPokemon"/> stays the sole binary read/write definition.
 /// </para>
 /// <para>
 /// Stored (boxed) writes use <see cref="MercuryPokemon.ToBoxBytes"/> (58 bytes); party writes use
@@ -28,6 +30,9 @@ public sealed class MercuryPKM : PKM, IAppliedMarkings3
     public static MercuryGameData? DefaultGameData { get; set; }
 
     private int _statMode;
+    private byte? _unknownBoxTypeOverride;
+    private ushort _unknownBoxTypeSpecies;
+    private ushort _unknownBoxTypeExpanded;
 
     /// <summary>Save stat-scaling mode (0, 11, 12 or 13) used by <see cref="LoadStats"/>.</summary>
     public int StatMode
@@ -51,6 +56,12 @@ public sealed class MercuryPKM : PKM, IAppliedMarkings3
 
         var bytes = mon.ToPartyBytes();
         bytes.AsSpan(0, Math.Min(bytes.Length, Data.Length)).CopyTo(Data);
+        if (!mon.IsPartyForm && !CanEncodeTypeOverride(mon.TypeOverride))
+        {
+            _unknownBoxTypeOverride = (byte)mon.TypeOverride;
+            _unknownBoxTypeSpecies = mon.Species;
+            _unknownBoxTypeExpanded = ExpandedTypeWord;
+        }
         if (!mon.IsPartyForm)
             InitializePartyPp();
     }
@@ -74,10 +85,29 @@ public sealed class MercuryPKM : PKM, IAppliedMarkings3
 
     // --- canonical buffer bridge -----------------------------------------
 
-    private MercuryPokemon Mon => MercuryPokemon.FromParty(Data.ToArray());
+    private ushort ExpandedTypeWord => (ushort)(Data[MercurySaveLayout.ExTypeOverride] | (Data[MercurySaveLayout.ExTypeOverride + 1] << 8));
+
+    private MercuryPokemon Mon
+    {
+        get
+        {
+            var mon = MercuryPokemon.FromParty(Data.ToArray());
+            if (_unknownBoxTypeOverride is { } raw)
+            {
+                if (mon.Species == _unknownBoxTypeSpecies && ExpandedTypeWord == _unknownBoxTypeExpanded)
+                    mon.TypeOverride = raw;
+                else
+                    _unknownBoxTypeOverride = null; // A direct Data edit takes precedence over the boxed sidecar.
+            }
+            return mon;
+        }
+    }
 
     private void SetMon(MercuryPokemon mon)
     {
+        if (_unknownBoxTypeOverride is { } raw &&
+            (mon.TypeOverride != raw || mon.Species != _unknownBoxTypeSpecies || ExpandedTypeWord != _unknownBoxTypeExpanded))
+            _unknownBoxTypeOverride = null;
         var bytes = mon.ToPartyBytes();
         bytes.AsSpan(0, Math.Min(bytes.Length, Data.Length)).CopyTo(Data);
     }
@@ -129,7 +159,14 @@ public sealed class MercuryPKM : PKM, IAppliedMarkings3
     protected override void EncryptStored(Span<byte> stored) { }
     protected override void EncryptParty(Span<byte> party) { }
 
-    public override PKM Clone() => new MercuryPKM(GameData, Mon.Clone(), StatMode);
+    public override PKM Clone()
+    {
+        var clone = new MercuryPKM(GameData, Mon.Clone(), StatMode);
+        clone._unknownBoxTypeOverride = _unknownBoxTypeOverride;
+        clone._unknownBoxTypeSpecies = _unknownBoxTypeSpecies;
+        clone._unknownBoxTypeExpanded = _unknownBoxTypeExpanded;
+        return clone;
+    }
 
     // --- serialization ----------------------------------------------------
 
@@ -163,13 +200,17 @@ public sealed class MercuryPKM : PKM, IAppliedMarkings3
         get => Mon.TypeOverride;
         set
         {
-            if (value is not (0 or 31) && (value < 1 || value > 25 || !MercurySaveLayout.IsValidType(value - 1)))
+            if (!CanEncodeTypeOverride(value))
                 throw new ArgumentOutOfRangeException(nameof(value), value, "Type override must be a supported Mercury party encoding.");
+            _unknownBoxTypeOverride = null; // Even an explicit choice of automatic (0) replaces an unknown boxed value.
             var m = Mon;
             m.TypeOverride = value;
             SetMon(m);
         }
     }
+
+    private static bool CanEncodeTypeOverride(int value) => value is 0 or 31 ||
+        (value is >= 1 and <= 25 && MercurySaveLayout.IsValidType(value - 1));
 
     public override uint PID
     {

@@ -68,13 +68,15 @@ public partial class PKMEditor
         var items = BuildMercuryTypeList();
         int raw = pk.TypeOverride;
         int expanded = pk.Data[0x1E] | (pk.Data[0x1F] << 8);
-        // Invalid expanded data decodes to zero, but remains in the lossless party template.
-        // Show that original encoding without invoking the setter or making it a writable option.
-        bool unknown = expanded != 0 && expanded != 0xA500 &&
-            (expanded != (0xA500 | raw) || !items.Exists(z => z.Value == raw));
-        if (unknown)
+        // Unknown boxed bits have a guarded sidecar; invalid expanded data stays in the party template.
+        // Display either original encoding without invoking a setter or offering it as a writable option.
+        bool unknownRaw = !items.Exists(z => z.Value == raw);
+        bool unknownExpanded = expanded != 0 && expanded != 0xA500 && expanded != (0xA500 | raw);
+        if (unknownRaw)
+            items.Add(new ComboItem($"未知箱装编码 {raw}（保留）", -1));
+        else if (unknownExpanded)
             items.Add(new ComboItem($"未知原始编码 0x{expanded:X4}（保留）", -1));
-        _mercuryTypeSelection = unknown ? -1 : raw;
+        _mercuryTypeSelection = unknownRaw || unknownExpanded ? -1 : raw;
         CB_MercuryTypeOverride!.DataSource = items;
         CB_MercuryTypeOverride.SelectedValue = _mercuryTypeSelection;
         _mercuryTypeSpecies = pk.Species;
