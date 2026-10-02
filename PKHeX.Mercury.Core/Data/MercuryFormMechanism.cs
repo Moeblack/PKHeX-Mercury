@@ -74,6 +74,11 @@ public sealed class MercuryFormMechanism
         CoveredReverseFinalTarget = coveredReverseFinalTarget;
     }
 
+    /// <summary>Adds independent transition metadata without replacing PID, gender or runtime resource rules.</summary>
+    internal MercuryFormMechanism WithTransitions(MercurySpeciesTransition[] transitions, ushort? coveredReverseFinalTarget)
+        => new(BaseSpecies, Kind, SelectionSource, RequiredContext | MercuryFormContext.TransitionConditions,
+            [.. EvidenceAddresses], [.. Options], transitions, coveredReverseFinalTarget);
+
     /// <summary>The queried internal species ID, not a canonical or globally unique form-group base.</summary>
     public ushort BaseSpecies { get; }
     public MercuryFormMechanismKind Kind { get; }
@@ -85,7 +90,7 @@ public sealed class MercuryFormMechanism
     /// <summary>Proven outgoing species transitions; not writable Form options.</summary>
     public IReadOnlyList<MercurySpeciesTransition> Transitions { get; }
 
-    /// <summary>Last write on the specifically covered ordered reverse path, not a globally unique base species.</summary>
+    /// <summary>Last method-254/param-zero write in initial-table physical order on the covered reverse path, not a global base.</summary>
     public ushort? CoveredReverseFinalTarget { get; }
 
     /// <summary>

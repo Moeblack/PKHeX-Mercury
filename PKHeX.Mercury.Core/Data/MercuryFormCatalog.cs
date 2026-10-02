@@ -1,4 +1,6 @@
+using System;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace PKHeX.Mercury.Core;
 
@@ -15,130 +17,16 @@ public static class MercuryFormCatalog
         "0x09D3091E restores the original species from sp+0x2E before returning. " +
         "Later handler behavior and other persistence conditions remain unproven.";
 
-    private static readonly IReadOnlyDictionary<ushort, MercuryFormMechanism> Known =
-        new Dictionary<ushort, MercuryFormMechanism>
+    public const string VersionKey = MercuryTransitionTableV1_1.VersionKey;
+    public const string SourceTableSha256 = MercuryTransitionTableV1_1.SourceTableSha256;
+    public const string RomSha256 = MercuryTransitionTableV1_1.RomSha256;
+
+    private static readonly IReadOnlyDictionary<ushort, MercuryFormMechanism> Known = CreateKnown();
+
+    private static Dictionary<ushort, MercuryFormMechanism> CreateKnown()
+    {
+        var result = new Dictionary<ushort, MercuryFormMechanism>
         {
-            [3] = CreateTransitions(3,
-            [
-                new(3, 1260, 253, 1,
-                    "Conditional conversion: 0x09D1EE02 requires a nonzero selector flag and method 253 / param != 0. " +
-                    "Caller 0x09D1EE3C reads mon+0x47 bit 3 and applies additional runtime gates. " +
-                    "0x09D1EEB4 calls the writer. " + TemporarySpeciesWrite,
-                    3, [0x097890E2, 0x09D1EE02, 0x09D1EE7E, 0x09D1EEB4, 0x09D30772, 0x09D3078A, 0x09D3091E, 0x0804076A]),
-                new(3, 869, 254, 533,
-                    "Conditional conversion: the sample has auxiliary value 0; 0x09D42562 compares mon+0x22 " +
-                    "(item index) with parameter 533. Additional runtime gates in 0x09D424B8 and 0x09D42590 apply. " +
-                    "0x09D425D4 calls the writer. " + TemporarySpeciesWrite,
-                    3, [0x097890DA, 0x09D424B8, 0x09D42562, 0x09D425CA, 0x09D425D4, 0x09D30772, 0x09D3078A, 0x09D3091E, 0x0804076A]),
-            ]),
-            [1260] = CreateTransitions(1260,
-            [
-                new(1260, 3, 253, 0,
-                    "Fallback, not the forward trigger: 0x09D1EF68 matches method 253 / param 0; " +
-                    "0x09D1EFDC writes the returned species at mon+0x20. The covered 0x09D0C864 " +
-                    "party-receive/copy path invokes this before copying 100 bytes into a party slot. " +
-                    "Other persistence conditions remain unproven.",
-                    null, [0x097B055A, 0x09D1EF68, 0x09D1EFE2, 0x09D1EFEE, 0x08040B14, 0x09D0C874, 0x09D0C8C8]),
-            ]),
-            [869] = CreateTransitions(869,
-            [
-                new(869, 3, 254, 0,
-                    "Fallback, not an item-533 requirement: 0x09D423E4 matches method 254 / param 0 " +
-                    "and writes the returned species at mon+0x20. The covered 0x09D0C864 " +
-                    "party-receive/copy path invokes this before copying 100 bytes into a party slot. " +
-                    "Other persistence conditions remain unproven.",
-                    null, [0x097A41DA, 0x09D423E4, 0x09D4240C, 0x08040B14, 0x09D0C86E, 0x09D0C8C8]),
-            ]),
-            [6] = CreateTransitions(6,
-            [
-                new(6, 870, 254, 533,
-                    "Conditional conversion: slot 0, mode 0 / auxiliary 0; 0x09D42562 compares held-item " +
-                    "mon+0x22 with 533. The first matching record is selected, subject to the existing runtime gates. " +
-                    "0x09D425D4 calls the writer. " + TemporarySpeciesWrite,
-                    6, [0x0978925A, 0x09D424B8, 0x09D42562, 0x09D425CA, 0x09D425D4, 0x09D3078A, 0x09D3091E]),
-                new(6, 871, 254, 535,
-                    "Conditional conversion: slot 1, mode 0 / auxiliary 0; held-item mon+0x22 must equal 535, " +
-                    "so slot 0's parameter 533 does not match. Existing runtime gates still apply. " +
-                    "0x09D425D4 calls the writer. " + TemporarySpeciesWrite,
-                    6, [0x09789262, 0x09D424B8, 0x09D42562, 0x09D42574, 0x09D425D4, 0x09D3078A, 0x09D3091E]),
-                new(6, 1261, 253, 1,
-                    "Conditional conversion: slot 2 / auxiliary 0; 0x09D1EE02 skips the two method-254 records " +
-                    "and selects the first method-253 record with param != 0. Parameter 1 is not an item requirement. " +
-                    "mon+0x47 bit 3 and the outer runtime gates apply. 0x09D1EEB4 calls the writer. " + TemporarySpeciesWrite,
-                    6, [0x0978926A, 0x09D1EE02, 0x09D1EE1E, 0x09D1EE78, 0x09D1EEB4, 0x09D3078A, 0x09D3091E]),
-            ]),
-            [870] = CreateTransitions(870,
-            [
-                new(870, 6, 254, 0,
-                    "Fallback: 0x09D423E4 matches method 254 / param 0 without a held-item or auxiliary filter. " +
-                    "0x09D4240C directly writes 6 at mon+0x20; the next zero-method record ends the scan. " +
-                    "The covered receive/copy path calls this reverse consumer before copying the mon.",
-                    null, [0x097A425A, 0x09D423E4, 0x09D4240C, 0x09D42412, 0x09D0C86E, 0x09D0C8C8]),
-            ]),
-            [871] = CreateTransitions(871,
-            [
-                new(871, 6, 254, 0,
-                    "Fallback: 0x09D423E4 matches method 254 / param 0 without a held-item or auxiliary filter. " +
-                    "0x09D4240C directly writes 6 at mon+0x20; the next zero-method record ends the scan. " +
-                    "The covered receive/copy path calls this reverse consumer before copying the mon.",
-                    null, [0x097A42DA, 0x09D423E4, 0x09D4240C, 0x09D42412, 0x09D0C86E, 0x09D0C8C8]),
-            ]),
-            [1261] = CreateTransitions(1261,
-            [
-                new(1261, 6, 253, 0,
-                    "Fallback: 0x09D1EF68 returns the first method-253 / param-0 target, 6. " +
-                    "0x09D1EFDC directly writes it at 0x09D1EFEE before the covered receive/copy path. " +
-                    "The separate bank path 0x09D1EF98 can override the table target with nonzero mon+0x1C; " +
-                    "that is not an unconditional base-species rule.",
-                    null, [0x097B05DA, 0x09D1EF68, 0x09D1EF84, 0x09D1EFEE, 0x09D1EFB8, 0x09D0C874, 0x09D0C8C8]),
-            ]),
-            [404] = CreateTransitions(404,
-            [
-                new(404, 910, 254, 277,
-                    "Conditional conversion: 0x09D42388 requires nonzero held-item mon+0x22 equal to 277, " +
-                    "method 254 / auxiliary 1. The first matching record calls the writer at 0x09D423C0, " +
-                    "then returns without scanning later records. " + TemporarySpeciesWrite,
-                    404, [0x0979595A, 0x09D42388, 0x09D42398, 0x09D423AE, 0x09D423B4, 0x09D423C0, 0x09D3078A, 0x09D3091E], auxRaw: 1),
-            ]),
-            [910] = CreateTransitions(910,
-            [
-                new(910, 404, 254, 0,
-                    "Fallback: auxiliary 1 is recorded but not tested by 0x09D423E4. The method-254 / param-0 " +
-                    "record directly writes 404 at 0x09D4240C; the next zero-method record ends the scan. " +
-                    "No held-item-277 requirement applies to this covered receive/copy reversal.",
-                    null, [0x097A565A, 0x09D423E4, 0x09D4240C, 0x09D42412, 0x09D0C86E, 0x09D0C8C8], auxRaw: 1),
-            ]),
-            [1079] = CreateTransitions(1079,
-            [
-                new(1079, 1081, 254, 532,
-                    "Conditional conversion: mode 1 / auxiliary 3, held-item mon+0x22 == 532 and outer runtime " +
-                    "gates. 0x09D42590 tries mode 0 before mode 1; auxiliary 3 bypasses the auxiliary-0 branch " +
-                    "at 0x09D425B8. 0x09D425D4 calls the writer. " + TemporarySpeciesWrite +
-                    " Species 1081 has two reverse records; no globally unique fallback is assigned.",
-                    null, [0x097AAADA, 0x09D424B8, 0x09D4255E, 0x09D42562, 0x09D425B8, 0x09D425D4, 0x09D3078A, 0x09D3091E], auxRaw: 3),
-            ]),
-            [1080] = CreateTransitions(1080,
-            [
-                new(1080, 1081, 254, 532,
-                    "Conditional conversion: mode 1 / auxiliary 3, held-item mon+0x22 == 532 and outer runtime " +
-                    "gates. 0x09D42590 tries mode 0 before mode 1; auxiliary 3 bypasses the auxiliary-0 branch " +
-                    "at 0x09D425B8. 0x09D425D4 calls the writer. " + TemporarySpeciesWrite +
-                    " Species 1081 has two reverse records; no globally unique fallback is assigned.",
-                    null, [0x097AAB5A, 0x09D424B8, 0x09D4255E, 0x09D42562, 0x09D425B8, 0x09D425D4, 0x09D3078A, 0x09D3091E], auxRaw: 3),
-            ]),
-            [1081] = CreateTransitions(1081,
-            [
-                new(1081, 1079, 254, 0,
-                    "Fallback slot 0 / auxiliary 3: 0x09D423E4 directly writes 1079 at 0x09D4240C, then " +
-                    "continues the original 1081 table at 0x09D42412. This is an intermediate write, not a " +
-                    "first-match return or a backup-dependent selection.",
-                    null, [0x097AABDA, 0x09D423E4, 0x09D4240C, 0x09D42412, 0x09D0C86E], auxRaw: 3),
-                new(1081, 1080, 254, 0,
-                    "Fallback slot 1 / auxiliary 3: after writing slot 0 target 1079, 0x09D423E4 directly " +
-                    "writes 1080 at 0x09D4240C. The following zero method ends this scan. The last write on " +
-                    "this covered path is 1080; other contexts remain unproven, so no global base is inferred.",
-                    null, [0x097AABE2, 0x09D423E4, 0x09D4240C, 0x09D42412, 0x09D423FA, 0x09D0C86E], auxRaw: 3),
-            ], coveredReverseFinalTarget: 1080),
             [201] = CreateUnown(),
             [0x1F6] = CreateGender(0x1F6, 0x2E8, 0x0940E308, 0x0940E32E),
             [0x1F7] = CreateGender(0x1F7, 0x2E9, 0x0940E310, 0x0940E334),
@@ -159,6 +47,20 @@ public static class MercuryFormCatalog
                 ]),
         };
 
+        var tables = MercuryTransitionTableV1_1.Records.ToArray().GroupBy(r => r.Source)
+            .ToDictionary(g => g.Key, g => g.OrderBy(r => r.Slot).ToArray());
+        foreach (var (species, records) in tables)
+        {
+            var transitions = records.Select(r => CreateTransition(r, tables)).ToArray();
+            ushort? finalTarget = transitions.Where(t => t.MethodRaw == 254 && t.ParamRaw == 0)
+                .Select(t => (ushort?)t.Target).LastOrDefault();
+            result[species] = result.TryGetValue(species, out var resource)
+                ? resource.WithTransitions(transitions, finalTarget)
+                : CreateTransitions(species, transitions, finalTarget);
+        }
+        return result;
+    }
+
     /// <summary>
     /// Looks up an internal species without retail-number conversion or masking. Unlisted IDs,
     /// including resource targets, return Unresolved with no proven options, never "has no forms".
@@ -170,16 +72,83 @@ public static class MercuryFormCatalog
             MercuryFormContext.None, [], []);
 
     private static MercuryFormMechanism CreateTransitions(ushort species, MercurySpeciesTransition[] transitions,
-        ushort? coveredReverseFinalTarget = null)
+        ushort? coveredReverseFinalTarget)
         => new(species, MercuryFormMechanismKind.ConditionalSpeciesTransition,
+            "Shared V1_1 consumers classify the complete method-253/254 table, preserving physical record order. " +
             "Forward conversions temporarily write a target via 0x09D30740, then restore the original species " +
             "at 0x09D3091E before returning. Direct reverse consumers separately write fallback species on " +
-            "the covered receive/copy path. This is not a permanent Form field; only individually traced relations are admitted." +
-            (coveredReverseFinalTarget is null ? string.Empty :
-                " For species 1081, 0x09D423E4 writes slot 0 target 1079, then slot 1 target 1080; " +
-                "the last write is 1080 on this path, not a globally unique base species."),
+            "the covered receive/copy path. This is not a permanent Form field or a globally unique base species.",
             MercuryFormContext.TransitionConditions,
             [0x09D30772, 0x09D3078A, 0x09D3091E, 0x0804076A, 0x09D0C864], [], transitions, coveredReverseFinalTarget);
+
+    private static MercurySpeciesTransition CreateTransition(MercuryTransitionRecord record,
+        IReadOnlyDictionary<ushort, MercuryTransitionRecord[]> tables)
+    {
+        ushort? reverseTarget = null;
+        if (record.Parameter != 0 && tables.TryGetValue(record.Target, out var targetTable))
+        {
+            var reverse = targetTable.Where(r => r.Method == record.Method && r.Parameter == 0).Take(2).ToArray();
+            if (reverse.Length == 1)
+                reverseTarget = reverse[0].Target; // A table lookup, not an assertion that this equals record.Source.
+        }
+
+        var (condition, evidence) = DescribeTransition(record);
+        if (record.Parameter != 0)
+        {
+            condition += " " + TemporarySpeciesWrite;
+            evidence = [.. evidence, 0x09D30772, 0x09D3078A, 0x09D3091E, 0x0804076A];
+        }
+        return new(record.Source, record.Target, record.Method, record.Parameter, condition, reverseTarget,
+            [record.Address, .. evidence], record.Auxiliary, record.Slot, record.Address);
+    }
+
+    // CFRU dynamax.c / mega.c / form_change.c consumers, matched to this ROM's numeric branches.
+    // These describe prerequisites; they do not execute a conversion or claim the runtime gates are satisfied.
+    private static (string Condition, uint[] Evidence) DescribeTransition(MercuryTransitionRecord r)
+        => (r.Method, r.Parameter, r.Auxiliary) switch
+        {
+            (253, 0, _) => (
+                "Fallback: 0x09D1EF68 returns the first method-253 / param-0 target before method 0. " +
+                "0x09D1EFDC writes that table result at mon+0x20 before the covered receive/copy path. " +
+                "The separate bank path 0x09D1EF98 can override it with nonzero backup mon+0x1C; " +
+                "the table result need not equal the original forward source. Other persistence conditions remain unproven.",
+                [0x09D1EF68, 0x09D1EF84, 0x09D1EFDC, 0x09D1EFEE, 0x09D1EF98, 0x09D1EFB8, 0x09D0C874, 0x09D0C8C8]),
+            (253, > 0, _) => (
+                "Conditional conversion: parameter is a nonzero flag, not an item or level requirement. " +
+                "0x09D1EE02 returns the first method-253 / param-nonzero target before method 0. " +
+                "Caller 0x09D1EE3C requires mon+0x47 bit 3; its outer item/context gate 0x09D1EC28 " +
+                "has not been fully mapped to the reference configuration. 0x09D1EEB4 calls the writer.",
+                [0x09D1EE02, 0x09D1EE3C, 0x09D1EE78, 0x09D1EC28, 0x09D1EEB4]),
+            (254, 0, _) => (
+                "Fallback: 0x09D423E4 scans the initial species table in physical slot order until method 0. " +
+                "Every method-254 / param-0 record directly writes its target at 0x09D4240C; " +
+                "0x09D42412 continues without re-indexing by the new species. The last write wins on this path. " +
+                "No held-item or auxiliary filter and no backup selection apply. This is the covered " +
+                "receive/copy reversal, not a globally unique base; other persistence conditions remain unproven.",
+                [0x09D423E4, 0x09D4240C, 0x09D42412, 0x09D0C86E, 0x09D0C8C8]),
+            (254, > 0, 0 or 3) => (
+                $"Conditional conversion: mode {(r.Auxiliary == 0 ? 0 : 1)} / auxiliary {r.Auxiliary}; " +
+                $"0x09D42562 compares held-item mon+0x22 with item index {r.Parameter}. " +
+                "The first context-matching record before method 0 is returned; mode 0 is tried before mode 1. " +
+                "Outer gates 0x09D61128 / 0x09D31E7C and Keystone configuration are not fully mapped. " +
+                "Auxiliary 3 bypasses the additional 0x09D66590 / 0x09D66660 gate used by the ordinary path. " +
+                "0x09D425D4 calls the writer.",
+                [0x09D424B8, 0x09D42562, 0x09D425B8, 0x09D425D4, 0x09D61128, 0x09D31E7C, 0x09D66590, 0x09D66660]),
+            (254, > 0, 1) => (
+                $"Conditional conversion: method 254 / auxiliary 1 requires nonzero held-item mon+0x22 equal to item index {r.Parameter}. " +
+                "0x09D42388 scans all 16 physical slots, without a method-0 terminator; the first matching record " +
+                "calls the writer at 0x09D423C0 and returns its context-dependent script.",
+                [0x09D42388, 0x09D42398, 0x09D423AE, 0x09D423B4, 0x09D423C0]),
+            (254, > 0, 2) => (
+                $"Conditional conversion: mode 0 / auxiliary 2 compares move index {r.Parameter} with four learned moves " +
+                "at mon+0x2C through mon+0x32, not the held-item parameter comparison. " +
+                "The first context-matching record before method 0 is returned. The held-item category gate " +
+                "0x09D3D77C must return zero; battle mask 0x06000100 invokes 0x09D31DD0 when set and requires nonzero. " +
+                "These category/Frontier gates and outer 0x09D61128 / 0x09D31E7C / 0x09D66590 / 0x09D66660 " +
+                "configuration are not fully mapped. 0x09D425D4 calls the writer.",
+                [0x09D424B8, 0x09D42522, 0x09D42538, 0x09D42544, 0x09D3D77C, 0x09D31DD0, 0x09D425D4]),
+            _ => throw new InvalidOperationException("The version-bound table contains an unclassified transition branch."),
+        };
 
     private static MercuryFormMechanism CreateUnown()
     {

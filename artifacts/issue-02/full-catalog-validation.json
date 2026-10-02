@@ -1,0 +1,49 @@
+{
+  "base": "7b4361a6020957e1db16498bfb599bfd608a9950",
+  "branch": "fix/mercury-issue-02-full-catalog",
+  "version": "V1_1",
+  "input": "Existing validated HMA first_three_tables/evolutions.txt export; no ROM extraction or new parser.",
+  "hmaSha256": "1db2aef9a247eade27165180e76f394f9681843af5ed0b40acc9bc85b8e71c0d",
+  "canonicalRecordSha256": "8fe8ae694bf2b4d221b2d758fea793a75ea09cbdb3825b84903db23d92e4b672",
+  "canonicalFormat": "UTF-8 source,target,method,param,aux,physicalSlot,uppercase8DigitRomAddress; LF between records, no final LF; source then physical slot order.",
+  "coverage": {
+    "records": 233,
+    "sources": 226,
+    "method253": {"forward": 55, "reverse": 34},
+    "method254": {"forward": 72, "reverse": 72},
+    "existingPidGenderRuntimeSourceOverlaps": 0,
+    "preserved253ReverseTargetMismatches": 21,
+    "multipleReverseTarget": 1081,
+    "multipleReversePhysicalOrder": [1079, 1080]
+  },
+  "implementation": [
+    "Version-bound compact read-only table carries raw values, physical slot and record address.",
+    "Shared branch conditions/evidence replace individually written sample descriptions.",
+    "254 final reverse write is calculated for every source from initial-table physical order, without a species-1081 special algorithm.",
+    "Forward ReverseTarget is a target-table result, never assumed to equal source; ambiguous multi-record lookup remains null.",
+    "Existing resource Kind/Options remain intact when independent transitions are attached; tooltip displays both categories.",
+    "No Pokemon setter, package schema or ROM reader changed; metadata does not execute a conversion or permit permanent Form editing."
+  ],
+  "validation": [
+    {
+      "command": "dotnet test Tests/PKHeX.Core.Tests/PKHeX.Core.Tests.csproj -m:1 --nologo --filter FullyQualifiedName~PKHeX.Core.Tests.Mercury.MercurySpeciesTransitionTests",
+      "sdk": "Prescribed PKHeX-Mercury private dotnet SDK",
+      "exitCode": 0,
+      "passed": 45,
+      "failed": 0,
+      "skipped": 0,
+      "coverage": "Fixed independent 233-record snapshot and canonical digest, method/aux counts, 16 historical examples, aux2 move condition, all reverse final writes, 21 mismatches, unresolved IDs, immutable metadata, unchanged PKM bytes, existing resource categories and eight synthetic WithTransitions overlap cases."
+    },
+    {
+      "command": "dotnet build PKHeX.WinForms/PKHeX.WinForms.csproj -m:1 --nologo",
+      "exitCode": 0,
+      "warnings": 0,
+      "errors": 0
+    },
+    {
+      "command": "git diff --check",
+      "exitCode": 0
+    }
+  ],
+  "limits": "Only the requested xunit class and WinForms host build ran. Linked tooltip source is tested, not GUI interaction. Specific unmapped outer gates and later handler/backup persistence boundaries remain documented. This covers all 253/254 records of V1_1, not all possible Mercury form mechanisms."
+}
