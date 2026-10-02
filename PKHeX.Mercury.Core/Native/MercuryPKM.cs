@@ -294,8 +294,16 @@ public sealed class MercuryPKM : PKM, IAppliedMarkings3
 
     public override byte Form
     {
-        get => 0; // Mercury forms are separate internal species indices.
-        set { }
+        get => Species == 201 ? EntityPID.GetUnownForm3(PID) : (byte)0;
+        set
+        {
+            if (Species != 201)
+                return;
+            ArgumentOutOfRangeException.ThrowIfGreaterThan(value, (byte)27);
+            // Same form-setting interaction as G3PKM: the form is encoded in the PID.
+            while (EntityPID.GetUnownForm3(PID) != value)
+                PID = Util.Rand.Rand32();
+        }
     }
 
     public override bool IsEgg
@@ -413,14 +421,14 @@ public sealed class MercuryPKM : PKM, IAppliedMarkings3
             int index = pi.GetIndexOfAbility(value);
             if (index < 0)
                 return;
-            ApplyPersonality(Mon.Nature, Gender, IsShiny, index);
+            ApplyPersonality(Mon.Nature, Gender, IsShiny, index, updateAbility: true);
         }
     }
 
     public override int AbilityNumber
     {
         get => 1 << EffectiveSlot();
-        set => ApplyPersonality(Mon.Nature, Gender, IsShiny, value switch { 1 => 0, 2 => 1, 4 => 2, _ => 0 });
+        set => ApplyPersonality(Mon.Nature, Gender, IsShiny, value switch { 1 => 0, 2 => 1, 4 => 2, _ => 0 }, updateAbility: true);
     }
 
     public override void SetPIDGender(byte gender) => Gender = gender;
@@ -440,7 +448,7 @@ public sealed class MercuryPKM : PKM, IAppliedMarkings3
             if (slot == 1 && pi.GetAbilityAtIndex(1) == 0)
                 slot = 0;
         }
-        ApplyPersonality(Mon.Nature, Gender, IsShiny, slot);
+        ApplyPersonality(Mon.Nature, Gender, IsShiny, slot, updateAbility: true);
     }
 
     public override void SetShiny()
@@ -463,7 +471,7 @@ public sealed class MercuryPKM : PKM, IAppliedMarkings3
         return 0;
     }
 
-    private void ApplyPersonality(int nature, int gender, bool shiny, int slot)
+    private void ApplyPersonality(int nature, int gender, bool shiny, int slot, bool updateAbility = false)
     {
         var pi = PersonalInfo as MercuryPersonalInfo;
         var mon = Mon;
@@ -476,7 +484,11 @@ public sealed class MercuryPKM : PKM, IAppliedMarkings3
                 resolved = 0;
             try
             {
-                mon.SetPersonality(nature, gender, pi.Gender, shiny, resolved);
+                // A missing second ability does not forbid odd PIDs. Unown's form is another PID constraint.
+                bool constrainParity = resolved != 2 && pi.GetAbilityAtIndex(1) != 0;
+                byte? unownForm = Species == 201 ? EntityPID.GetUnownForm3(mon.PID) : null;
+                bool changeAbility = updateAbility && resolved != EffectiveSlot();
+                mon.SetPersonality(nature, gender, pi.Gender, shiny, resolved, constrainParity, unownForm, changeAbility);
             }
             catch (ArgumentException)
             {

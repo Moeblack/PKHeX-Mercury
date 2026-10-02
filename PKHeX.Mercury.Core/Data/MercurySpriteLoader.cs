@@ -33,8 +33,8 @@ internal static class MercurySpriteLoader
         return xor <= 7;
     }
 
-    public static bool TryRender(byte[] rom, int resourceIndex, uint pid, uint trainerId, out byte[] rgba)
-        => TryRender(rom, resourceIndex, pid, trainerId, default, out rgba, out _);
+    public static bool TryRender(byte[] rom, int resourceIndex, uint pid, uint trainerId, out byte[] rgba, int? paletteIndex = null)
+        => TryRender(rom, resourceIndex, pid, trainerId, default, out rgba, out _, paletteIndex);
 
     /// <summary>
     /// Renders one explicit complete frame/page pair. Invalid selections fail without clamping;

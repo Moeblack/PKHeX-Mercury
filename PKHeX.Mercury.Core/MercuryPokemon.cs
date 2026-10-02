@@ -621,7 +621,8 @@ public sealed class MercuryPokemon
     /// The current PID is kept when it already satisfies everything.
     /// Throws <see cref="ArgumentException"/> when the constraints are contradictory.
     /// </summary>
-    public void SetPersonality(int nature, int gender, byte genderRatio, bool shiny, int abilitySlot)
+    public void SetPersonality(int nature, int gender, byte genderRatio, bool shiny, int abilitySlot,
+        bool constrainAbilityParity = true, byte? unownForm = null, bool updateHiddenAbility = true)
     {
         if (nature is < 0 or > 24)
             throw new ArgumentOutOfRangeException(nameof(nature), nature, "Nature must be 0-24.");
@@ -629,6 +630,8 @@ public sealed class MercuryPokemon
             throw new ArgumentOutOfRangeException(nameof(gender), gender, "Gender must be 0 (male), 1 (female) or 2 (genderless).");
         if (abilitySlot is < 0 or > 2)
             throw new ArgumentOutOfRangeException(nameof(abilitySlot), abilitySlot, "Ability slot must be 0, 1 or 2.");
+        if (unownForm is > 27)
+            throw new ArgumentOutOfRangeException(nameof(unownForm), unownForm, "Unown form must be 0-27.");
 
         if (genderRatio == 0xFF && gender != 2)
             throw new ArgumentException("Species is genderless (0xFF), gender must be 2.", nameof(gender));
@@ -639,10 +642,14 @@ public sealed class MercuryPokemon
         if (gender == 2 && genderRatio != 0xFF)
             throw new ArgumentException("Genderless is only possible for species with gender ratio 0xFF.", nameof(gender));
 
-        if (IsPidAcceptable(PID, nature, gender, genderRatio, shiny, abilitySlot))
+        if (IsPidAcceptable(PID, nature, gender, genderRatio, shiny, abilitySlot, constrainAbilityParity, unownForm))
+        {
+            if (updateHiddenAbility)
+                HiddenAbility = abilitySlot == 2;
             return;
+        }
 
-        bool constrainAbility = abilitySlot != 2;
+        bool constrainAbility = constrainAbilityParity && abilitySlot != 2;
         uint wantAbility = (uint)abilitySlot;
         uint id = ID32;
         uint tid = id & 0xFFFF;
@@ -662,9 +669,9 @@ public sealed class MercuryPokemon
                 {
                     uint hi = (baseXor ^ n) & 0xFFFF;
                     uint pid = (hi << 16) | low;
-                    if (pid % 25 != (uint)nature)
+                    if (!IsPidAcceptable(pid, nature, gender, genderRatio, shiny, abilitySlot, constrainAbilityParity, unownForm))
                         continue;
-                    Accept(pid, abilitySlot);
+                    Accept(pid, abilitySlot, updateHiddenAbility);
                     return;
                 }
             }
@@ -678,10 +685,9 @@ public sealed class MercuryPokemon
                 for (uint hi = residue; hi <= 0xFFFF; hi += 25)
                 {
                     uint pid = (hi << 16) | low;
-                    uint xor = ((pid >> 16) ^ (pid & 0xFFFF) ^ tid ^ sid) & 0xFFFF;
-                    if (xor < 8)
-                        continue; // avoid an unintended shiny
-                    Accept(pid, abilitySlot);
+                    if (!IsPidAcceptable(pid, nature, gender, genderRatio, shiny, abilitySlot, constrainAbilityParity, unownForm))
+                        continue;
+                    Accept(pid, abilitySlot, updateHiddenAbility);
                     return;
                 }
             }
@@ -690,23 +696,27 @@ public sealed class MercuryPokemon
         throw new ArgumentException("No PID satisfies the requested nature/gender/shiny/ability constraints.", nameof(nature));
     }
 
-    private bool IsPidAcceptable(uint pid, int nature, int gender, byte genderRatio, bool shiny, int abilitySlot)
+    private bool IsPidAcceptable(uint pid, int nature, int gender, byte genderRatio, bool shiny, int abilitySlot,
+        bool constrainAbilityParity, byte? unownForm)
     {
         if (pid % 25 != (uint)nature)
             return false;
-        if (abilitySlot != 2 && (pid & 1) != (uint)abilitySlot)
+        if (constrainAbilityParity && abilitySlot != 2 && (pid & 1) != (uint)abilitySlot)
             return false;
         if (GenderFromLow((byte)(pid & 0xFF), genderRatio) != gender)
+            return false;
+        if (unownForm is { } form && PKHeX.Core.EntityPID.GetUnownForm3(pid) != form)
             return false;
         uint id = ID32;
         bool isShiny = (((pid >> 16) ^ (pid & 0xFFFF) ^ (id >> 16) ^ (id & 0xFFFF)) & 0xFFFF) < 8;
         return isShiny == shiny;
     }
 
-    private void Accept(uint pid, int abilitySlot)
+    private void Accept(uint pid, int abilitySlot, bool updateHiddenAbility)
     {
         PID = pid;
-        HiddenAbility = abilitySlot == 2;
+        if (updateHiddenAbility)
+            HiddenAbility = abilitySlot == 2;
     }
 
     // --- packing helpers --------------------------------------------------

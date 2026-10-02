@@ -484,6 +484,12 @@ public sealed class MercuryGameData
         const int XerneasAlt = 0x44D;
 
         int s = species & 0xFFFF;
+        // 0940E442..0940E48A: Unown A uses 201, other letters use 412 + form.
+        if (s == 201)
+        {
+            int form = PKHeX.Core.EntityPID.GetUnownForm3(pid);
+            return form == 0 ? s : 412 + form;
+        }
         int gender = GenderHelper(s, pid);
         if (gender == 0xFE)
         {
@@ -516,7 +522,9 @@ public sealed class MercuryGameData
     /// Normal/shiny remains selected by PID and trainer ID, independently of the frame/page.
     /// Returns null for unavailable resources or negative/out-of-range selections. Only complete
     /// 2048-byte frames / 32-byte pages are selectable; metadata reports any trailing bytes separately.
-    /// The optional palette table index overrides the resolved resource index, not the palette page.
+    /// The optional palette table index overrides species-specific palette resource selection
+    /// (by default species 201 forces palette resource 201); the palette page is not affected.
+    /// An explicit caller-supplied <paramref name="paletteIndex"/> still takes priority.
     /// On failure, dimensions are zero and metadata is default. No animation pairing is implied.
     /// </summary>
     public byte[]? GetSpriteRgba(int species, uint pid, uint trainerId, MercurySpriteSelection selection,
@@ -529,7 +537,8 @@ public sealed class MercuryGameData
             return null;
 
         int index = GetSpriteIndex(species, pid);
-        if (!MercurySpriteLoader.TryRender(_rom, index, pid, trainerId, selection, out byte[] rgba, out metadata, paletteIndex))
+        int resolvedPaletteIndex = paletteIndex ?? (species == 201 ? 201 : index);
+        if (!MercurySpriteLoader.TryRender(_rom, index, pid, trainerId, selection, out byte[] rgba, out metadata, resolvedPaletteIndex))
             return null;
 
         width = MercurySpriteLoader.Width;
