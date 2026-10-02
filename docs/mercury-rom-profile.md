@@ -1,11 +1,14 @@
 # Mercury ROM data profile (`PKHeX.Mercury.Core/Data`)
 
-This document describes the data layer that `PKHeX.Mercury` consumes: what the ROM tables are, how
-they were located, what a profile contains, and the deliberate limits of the public build.
+This document is developer-facing. It describes `PKHeX.Mercury.Core` (`Data/`), the data layer used by
+the Mercury adapter inside the upstream WinForms host (`PKHeX.WinForms/Mercury/MercuryIntegration.cs`).
+The legacy standalone `PKHeX.Mercury` WinExe project is not part of the current release build. Covered
+here: what the ROM tables are, how they were located, what a profile contains, and the deliberate
+limits of the public build.
 
 Nothing here ships ROM bytes, sprite images, or a full game-data dump. The public build works from the
-user's own ROM (plus an optional imported charmap), and any locally generated profile stays in a
-directory the user chooses.
+user's own ROM (plus an optional imported charmap), and a locally generated profile stays in a
+directory the caller supplies (the GUI passes its per-user default; see §5).
 
 ## 1. Sources and verification
 
@@ -90,8 +93,12 @@ decoded the same way the ROM code does (`stored + key` when `stored` is not alre
 
 `GetSpriteRgba` renders the **first frame, first palette page** of the front sprite:
 
-1. Resource index from `GetSpriteIndex(species, pid, runtimeState)`, which mirrors
-   `0x0940E2F0`:
+1. Resource index from `GetSpriteIndex(species, pid, runtimeState)`, which mirrors the ROM sprite
+   loader (`0x0940E2F0` entry, `0x0940E442..0x0940E48A` for Unown):
+   * species `201` (Unown) resolves through `PKHeX.Core.EntityPID.GetUnownForm3(pid)`: form 0 keeps
+     index `201`, forms 1..27 use `412 + form`. **This form branch is a workspace change and is not
+     in the published v0.2.0 build**, where Unown forms are not distinguished; it must not be
+     described as released until a build containing it ships.
    * gender helper (`0x0803F78C`) reads the species gender ratio; a female result (`0xFE`) maps
      `0x1F6→0x2E8`, `0x1F7→0x2E9`, `0x23E→0x2BF`, `0x285→0x2C0`, `0x286→0x2C1`, `0x308→0x33F`;
    * otherwise species `0x338` maps to `0x44D` when the runtime flag is clear (`runtimeState == false`),
@@ -137,8 +144,12 @@ The Home web app embeds the game data (including `charmap`) inline:
 
 ## 5. Profile format
 
-`SaveProfile(directory)` writes `mercury-profile.json` into the chosen directory (created if needed);
-`LoadProfile(directory)` reads it back. When the instance still holds ROM bytes, `SaveProfile` also
+`SaveProfile(directory)` and `LoadProfile(directory)` are library APIs: the caller chooses the directory
+(created if needed). The GUI adapter does not use an arbitrary directory — `MercuryIntegration.ProfileDirectory`
+defaults to `%LOCALAPPDATA%\PKHeX-Mercury\profile` and passes that fixed value, so both statements are
+consistent: fixed per-user default at the UI layer, caller-supplied path at the API layer.
+
+When the instance still holds ROM bytes, `SaveProfile` also
 writes a local `rom-cache.gba` next to the profile and records `romPath` as the **relative** file name;
 `LoadProfile` resolves it against the profile directory and re-verifies its SHA-256. The cache is a
 per-user local file (~32 MiB): it is never committed, bundled, released or uploaded, and a profile
@@ -147,12 +158,14 @@ have them. `WithTextCodec(codec)` re-decodes names: with a ROM present it re-rea
 `FromRom` (numeric rules unchanged); a numeric-only instance stays numeric-only; a research/profile
 instance without a ROM throws `NotSupportedException`.
 
-The file is JSON, camelCase keys, versioned:
+The file is JSON, camelCase keys, versioned. The current profile schema version is
+`MercuryProfile.CurrentVersion = 2`; a profile with an older `version` is filled from the verified ROM
+on load, and a `version` newer than the running build is rejected:
 
 ```jsonc
 {
   "format": "PKHeX.Mercury.Profile",
-  "version": 1,
+  "version": 2,
   "romSha256": "131b...e3dd",
   "source": "rom" | "research" | "profile" | "numeric",
   "romPath": "rom-cache.gba",          // relative local cache name; re-verified by SHA on load
@@ -164,12 +177,14 @@ The file is JSON, camelCase keys, versioned:
                  "levelUp": [[1,33],[1,45],...], "tmhm": [...], "tutor": [...],
                  "hasData": true }, ... ],
   "moves":  [ { "id": 1, "name": "拍击", "type": 0, "power": 40, "pp": 35, "accuracy": 100, "priority": 0 }, ... ],
-  "items":  [ { "id": 192, "embeddedId": 255, "name": "深海之牙" }, ... ],
+  "items":  [ { "id": 192, "embeddedId": 255, "pocket": 5, "type": 0, "name": "深海之牙" }, ... ],
   "growth": [ [0,1,8,...], ... ]   // 6 × 101, optional
 }
 ```
 
-`levelUp` pairs are `[level, move]`; `baseStats` order is `HP, Atk, Def, Spe, SpA, SpD`.
+`levelUp` pairs are `[level, move]`; `baseStats` order is `HP, Atk, Def, Spe, SpA, SpD`. `items`
+entries carry `pocket` (ROM `+0x1A`) and `type` (ROM `+0x1B`; for balls this is the stored ball
+value); both are optional and absent in legacy profiles without a ROM, matching `MercuryItem`.
 
 Profiles are generated locally and are **not** part of the repository or the released binaries. A
 profile can carry the imported charmap so a user who cannot download it can still get Chinese labels;

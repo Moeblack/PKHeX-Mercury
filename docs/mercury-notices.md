@@ -1,23 +1,33 @@
-# Sources and licensing / 来源与许可
+# 来源与许可
 
-## Code
+## 项目代码
 
-PKHeX Mercury is an unofficial derivative of [kwsch/PKHeX](https://github.com/kwsch/PKHeX), based on upstream commit `542111fc8584ff29c9d1455553b8acd0e1f8a59a` (2026-09-29). The upstream tree, history, notices and GPL license are preserved. The new Mercury projects use **GPL-3.0-or-later**, consistent with the upstream Core project's package license expression. See the repository [LICENSE](../LICENSE).
+PKHeX Mercury基于[kwsch/PKHeX](https://github.com/kwsch/PKHeX)，最初采用的上游提交为`542111fc8584ff29c9d1455553b8acd0e1f8a59a`。仓库保留上游历史、署名与许可文件；项目代码使用GPL-3.0-or-later，完整条款见[LICENSE](../LICENSE)。
 
-The Mercury executable references `PKHeX.Core`. The new save adapter and dedicated WinForms interface are independent additions; Mercury's compressed entities are not passed into the retail `PK3`/`SAV3` implementations. Upstream PKHeX authors have not endorsed or provided official support for this adaptation.
+v0.2.0使用上游`PKHeX.WinForms`主窗口与编辑控件，并链接上游绘图项目`PKHeX.Drawing`、`PKHeX.Drawing.PokeSprite`、`PKHeX.Drawing.Misc`；水银专用的`PKHeX.Mercury.Core`负责其存档与数据适配，适配层经`PKHeX.WinForms/Mercury`接入原生主窗口。v0.1.0的独立界面属于历史实现。本项目是非官方改版适配，未获得上游作者的官方支持或背书。
 
-## Format references
+## 上游第三方组件与图像署名
 
-- The user-supplied Mercury 1.1 ROM's actual readers, writers and pointer transformations are the authority for this supported format. Format addresses and arithmetic are documented in the save/profile notes; no ROM is distributed.
-- [Complete Fire Red Upgrade](https://github.com/Skeli789/Complete-Fire-Red-Upgrade) and [pret/pokefirered](https://github.com/pret/pokefirered) supplied symbol and engine-family references. They are not assumed to match Mercury without current-ROM evidence.
-- [Sum-Light/azoth-wiki](https://github.com/Sum-Light/azoth-wiki) and its public HOME page supplied existing format clues and optional text-code-to-Unicode labels. The application does not execute downloaded JavaScript. A user may import the labels locally or explicitly request the HOME page with the UI download button. Numerical species/move/item/experience data continue to come from the supported ROM.
+- QR码生成代码来自[QRCoder](https://github.com/codebude/QRCoder)，采用[MIT许可](https://github.com/codebude/QRCoder/blob/master/LICENSE.txt)。
+- 上游闪光精灵图片集合来自[pokesprite](https://github.com/msikma/pokesprite)，采用[MIT许可](https://github.com/msikma/pokesprite/blob/master/LICENSE)。
+- 上游《宝可梦传说：阿尔宙斯》精灵图片集合来自[National Pokédex – Icon Dex](https://www.deviantart.com/pikafan2000/art/National-Pokedex-Version-Delta-Icon-Dex-824897934)项目及其贡献者。
 
-The new Mercury projects do not copy the HOME editor's JavaScript implementation into the application or embed its full name/charmap database. Conditional ability-name mappings in source are small numeric relationships derived from the actual ROM display function.
+这些项目为上游程序提供资源或组件。水银专用预览另从用户配置的ROM读取，具体资源选择由水银适配器处理。
 
-## Game resources and personal data
+## 格式与文字资料
 
-A code license does not grant rights to Pokémon game content, logos, music, artwork, full game images, or third-party resource collections. Existing upstream resource notices remain in the original README. The Mercury executable does not reference the upstream drawing/sprite projects; Mercury previews are decoded at runtime from the user's own ROM.
+- 本版水银ROM中的读取、写入和资源加载代码，是存档及资源适配的依据。地址与解析关系记录在[存档格式文档](mercury-save-format.md)和[数据接口文档](mercury-rom-profile.md)。
+- [Complete Fire Red Upgrade](https://github.com/Skeli789/Complete-Fire-Red-Upgrade)及[pret/pokefirered](https://github.com/pret/pokefirered)提供函数定位和引擎结构参考。
+- [Sum-Light/azoth-wiki](https://github.com/Sum-Light/azoth-wiki)及其公开HOME页面提供格式线索和可导入的中文字符映射。程序解析导入文件中的资料，不执行其中的JavaScript。
 
-The Mercury changes and release package do **not** add a game ROM, extracted sprite collection, soundtrack, script/text dump, HOME database, or personal save. Profiles and `rom-cache.gba` are created only in the user's local data directory. They are not repository assets and must not be included when contributing source changes.
+v0.2.0未内嵌HOME完整数据库。字表在用户选择导入或下载后保存在本机，游戏数值仍来自所配置ROM。
 
-Pokémon and related names belong to their respective rights holders. This is an independent fan-made editing tool, not an official Pokémon or Project Pokémon release.
+## 发行包与游戏资源
+
+发行包包含程序、代码许可和使用说明，不附带游戏ROM、个人存档、提取音频或水银图片集合。用户配置的`rom-cache.gba`与资料文件保存在本机数据目录。
+
+代码许可适用于代码；游戏、美术、音乐及第三方资料的权利归各自权利人所有。Pokémon及相关名称属于其权利人。
+
+## 贡献者须知
+
+提交源码时，不加入个人存档、本机profile、`rom-cache.gba`或未经确认可分发的资源包。新增外部资料需记录来源、版本及相应许可。

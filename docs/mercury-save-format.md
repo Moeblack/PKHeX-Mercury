@@ -1,8 +1,10 @@
 # Mercury 1.1 save format (PKHeX.Mercury.Core)
 
-This document records the ROM instruction evidence behind `MercurySave`, `MercuryPokemon` and
-`MercuryTrainer`. It contains no personal save values and no ROM data dumps; only addresses,
-structure offsets and rules.
+Developer-facing reference. It records the ROM instruction evidence behind `MercurySave`,
+`MercuryPokemon` and `MercuryTrainer`. It contains no personal save values and no ROM data dumps; only
+addresses, structure offsets and rules. The user-facing facts live in the README: the editor reads
+128 KiB saves (plus a 16-byte RTC trailer) and validates section signatures/checksums automatically —
+no manual trimming, re-extension or offset handling is required.
 
 Target build (fixed, see `MercuryGameData` contract rule):
 
@@ -63,7 +65,8 @@ PokemonStorage = `0x02029314`.
 | 22-23 | SaveBlock1 + 0x1F08 |
 | 24 | SaveBlock2 + 0xB0 |
 
-Boxes 19-21: 0x09D56D08 reads sectors 0x1E/0x1F into 0x0203C038 / 0x0203D028; box 19 pointer
+Box indices here are the ROM's zero-based ids; the UI numbers boxes 1-25, so internal boxes 19-21 are
+the user's boxes 20-22. Boxes 19-21: 0x09D56D08 reads sectors 0x1E/0x1F into 0x0203C038 / 0x0203D028; box 19 pointer
 `0x0203CB44 = 0x0203C038 + 0xB0C`. The provided save samples have these boxes empty, so this path is
 ROM-instruction proven but not data-sampled.
 
