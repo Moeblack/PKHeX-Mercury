@@ -49,14 +49,17 @@
 | 35 | fix/mercury-issue-06-distribution | f6cb470fdca766f791dfdd35a04fa5edd9ae9a6b | 27323ed0a | Match fixed Mercury public distribution reference records |
 | 36 | fix/mercury-issue-06-check-roles | 50c724cff8fba2ccc4e4479f6754cadb13aa03fe | a35de94cc | fix(mercury): distinguish applicable checks from diagnostics |
 | 37 | fix/mercury-issue-06-bulk-checks | b1bd105a9a07e45f37391da6a4414a119c478d9a | 9632a04ba | feat(mercury): check current stored entities with scoped bulk reports |
+| 38 | fix/mercury-issue-05-embedded-data | c48c8e5740046c20f70f8a937d8e2a0575641a28 | 93603d053 | feat(mercury): ship fixed built-in 1.1 data and encounter resources |
 
-集成分支 pick HEAD（本次记录时）：`9632a04ba`（另含表述清理提交，见下）。三十七次 cherry-pick 均已落地：冲突发生于第 7、15、23、26 次并按规则解决；其余无冲突。
+集成分支 pick HEAD（本次记录时）：`93603d053`。三十八次 cherry-pick 均已落地：冲突发生于第 7、15、23、26 次并按规则解决；其余无冲突。
+
+第 38 次增量（Issue 5 完成）：Core 内置水银 1.1 资源 `Resources/Mercury/1.1`（`mercury-profile.json`、`locations.json`、`sprites.zip`、`mercury-data-pack.json`、`encounters.json`），经 `MercuryBuiltInData` 内存加载并默认挂 built-in GameData；`LoadBuiltIn` 以 trust=false 固定 ROM 描述、菜单只显示内置 1.1、Context 默认挂内置遭遇证据、Analysis gate 不变。内置资料优先于本机旧缓存。来源分支证据（原 worktree `issue-05-embedded-data/artifacts/issue-05-embedded/`）：`build.log`、`tests.log`（**172 pass / 15 skip / 0 fail**，总 187）、`host-results.json`（**16 host** 检查）、`publish.log`、`publish-resources.json`（publish 成功；5 资源逐字节在内置 exe 中，`resource_bytes_total` 8,416,743）、`handoff.json`。**未执行 GUI 歧义-取消实测**（未执行，代码未改）。集成复核：solution 构建 0 警告 0 错误（约 8.78 秒，日志 `artifacts/integration-build-builtin.log`）；`MercuryBuiltInDataTests` **9/9 通过、0 跳过**（日志 `artifacts/integration-mercury-builtin-tests.log`）。不再全 Mercury/GUI/publish 复制。
 
 第 37 次增量（Issue 6）：水银批量入口**不再暂停**。复用 `SlotInfoLoader` 当前缓冲（`AddFromSaveFile` 读当前 native `BoxBuffer`/活动 `PartyBuffer`），仅跳过 species 0、保存非零异常，无 setter/Export；原生批量入口对水银调用 `ShowBulk`，零售路径不变。范围统计/报告已产出；**仅 Yes 才复制到剪贴板**；**未实测实际点击与剪贴板交互**（只验证 Core 逐槽格式化输出与 WinForms 编译）。表述清理：`MercuryLegality.ShowPaused` 的原“水银批量来源检查尚未实现”改为“此存档不支持批量来源检查”，保留为**非水银 fallback**、不再当作水银状态；历史日志不改。验证：solution 构建 0 警告 0 错误（约 6.82 秒，日志 `artifacts/integration-build-bulk.log`）；5 类过滤合计 **95/95 通过、0 跳过**（日志 `artifacts/integration-mercury-bulk-tests.log`）。未跑全库/installer、未碰用户数据。
 
-当轮到齐提交：本轮批准的 `b1bd105a` 已集成（→ 9632a04ba）；无其它待集成（33–36 均已在链上）。
+当轮到齐提交：本轮批准的 `c48c8e574` 已集成（→ 93603d053）；无其它待集成（33–37 均已在链上）。
 
-Issue 6 结项（Main 裁定，不写“完整合法性已实现”）：**已完成本轮约定的有依据检查系统；非全游戏完整合法性判定器**。交付单只/批量原生入口，覆盖范围/学习表/普通遭遇字段/原生 Method1 辅助/公开配信精确来源；`Required`/`Diagnostic` 明确，`Invalid` 优先、真实缺口 `Unknown`。剩余覆盖限制仍 `Unknown`：普通获取全集、进化前/蛋招式组合、变化后配信未识别来源；静态脚本 gift 非任务。状态汇总：Issue 3、5 外部阻塞，其余 9 项当前范围完成；所有可执行增量已集成、未发布。
+Issue 6 结项（Main 裁定，不写“完整合法性已实现”）：**已完成本轮约定的有依据检查系统；非全游戏完整合法性判定器**。交付单只/批量原生入口，覆盖范围/学习表/普通遭遇字段/原生 Method1 辅助/公开配信精确来源；`Required`/`Diagnostic` 明确，`Invalid` 优先、真实缺口 `Unknown`。剩余覆盖限制仍 `Unknown`：普通获取全集、进化前/蛋招式组合、变化后配信未识别来源；静态脚本 gift 非任务。状态汇总：**11 项中 10 项完成；Issue 3（729 号道具图像）为唯一外部阻塞**；Issue 5 已完成（内置 1.1 资料）。所有可执行增量已集成、未发布。
 
 第 36 次增量（Issue 6 仍部分，不称完整游戏合法）：检查角色区分——任何 `Invalid` 优先；`Required` 的 `Unknown` 阻止通过；0 个 Required Unknown 才可通过；`rng`/`distribution` 参考恒为 `Diagnostic`，exact 配信时 ordinary fields/learning 为 `Diagnostic`；`range`/`source` 仍为 `Required`。无 ROM 仍 Unknown；真实 ROM 下 4 条 exact 配信全部适用检查 Pass。不适用辅助诊断不再算作来源未知原因；静态 gift 排除保持。验证：solution 构建 0 警告 0 错误（约 8.65 秒，日志 `artifacts/integration-build-check-roles.log`）；4 类过滤 `MercuryLegalityApplicabilityTests|MercuryDistributionReferenceTests|MercuryEncounterFieldMatchTests|MercuryMethod1Tests` 合计 **86/86 通过、0 跳过**（日志 `artifacts/integration-mercury-check-roles-tests.log`）。未跑全库/installer。
 
@@ -152,6 +155,7 @@ Issue 11 本次只完成帧/页 API：`MercurySpriteSelection(FrameIndex, Palett
 - 集成全量形态 + 版本 gate 提交后构建：**已成功生成，0 警告，0 错误**（约 7.55 秒）。日志 `artifacts/integration-build-transitions-full.log`。
 - 集成公开配信 exact-match 提交后构建：**已成功生成，0 警告，0 错误**（约 13.7 秒）。日志 `artifacts/integration-build-distribution.log`。
 - 集成检查角色区分提交后构建：**已成功生成，0 警告，0 错误**（约 8.65 秒）。日志 `artifacts/integration-build-check-roles.log`。
+- 集成内置 1.1 资料提交后构建：**已成功生成，0 警告，0 错误**（约 8.78 秒）。日志 `artifacts/integration-build-builtin.log`。
 
 ## Issue 3（729 号道具图像）：阻塞结论
 

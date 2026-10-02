@@ -6,16 +6,16 @@ The legacy standalone `PKHeX.Mercury` WinExe project is not part of the current 
 here: what the ROM tables are, how they were located, what a profile contains, and the deliberate
 limits of the public build.
 
-Nothing here ships ROM bytes, sprite images, or a full game-data dump. The public build works from the
-user's own ROM (plus an optional imported charmap), and a locally generated profile stays in a
-directory the caller supplies (the GUI passes its per-user default; see §5).
+Nothing here ships ROM bytes or a full game-data dump; the built-in pack carries extracted Mercury 1.1
+resources. The default `MercuryGameData` loads that pack from memory. The ROM / research / profile
+paths documented below remain available for development, research and legacy caches.
 
-> **Planned built-in data (development branch, not yet integrated).** The app will embed a Mercury 1.1
-> data pack in `PKHeX.Mercury.Core` resources: four files (numeric profile, locations, `sprites.zip`,
-> manifest) under `Resources/Mercury/1.1`, loaded directly from memory. The normal menu will no longer
-> offer ROM / charmap / profile / install prerequisites, will not read the legacy `%LOCALAPPDATA%`
-> profile or `data-pack`, and will not infer an older version from a save. Until the code is
-> integrated, the ROM/profile paths below remain the current sources.
+> **Built-in data.** The app embeds a Mercury 1.1 data pack in `PKHeX.Mercury.Core` resources under
+> `Resources/Mercury/1.1`: numeric profile, locations, `sprites.zip`, manifest, and encounters; it is
+> loaded directly from memory and attached to the default GameData. The normal menu no longer offers
+> ROM / charmap / profile / install prerequisites, does not read the legacy `%LOCALAPPDATA%` profile or
+> `data-pack`, and does not infer an older version from a save. Built-in data takes priority over local
+> legacy caches. The ROM/profile paths below remain available for development and research.
 
 ## 1. Sources and verification
 
@@ -25,7 +25,7 @@ directory the caller supplies (the GUI passes its per-user default; see §5).
 | ROM-native research dir | `MercuryGameData.FromResearch(string root)` | `out/MANIFEST.json` and `out/sprites/sprite_manifest.json` `input.sha256` must match the same value |
 | Local profile | `MercuryGameData.LoadProfile(string directory)` | profile `romSha256` + the profile format/version |
 | No data | `MercuryGameData.NumericOnly()` | internal ids only, `HasData == false`, no sprites/growth |
-| Built-in 1.1 data pack (**planned, not yet integrated**) | Core resources `Resources/Mercury/1.1`: numeric profile, locations, `sprites.zip`, manifest; loaded from memory | pack manifest + per-file SHA-256 (as with the portable pack) |
+| Built-in 1.1 data pack | Core resources `Resources/Mercury/1.1`: numeric profile, locations, `sprites.zip`, manifest, encounters; loaded from memory | pack manifest + per-file SHA-256; encounters SHA-256 `37eb8635…71458` |
 
 `FromResearch` consumes the existing outputs (`species.json`, `moves.json`/`move_names.json`,
 `items.json`, `ability_names.json`, `ability_display_names.json`, `charmap.json`,

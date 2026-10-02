@@ -12,7 +12,7 @@ v0.2.0使用上游`PKHeX.WinForms`主窗口与编辑控件，并链接上游绘�
 - 上游闪光精灵图片集合来自[pokesprite](https://github.com/msikma/pokesprite)，采用[MIT许可](https://github.com/msikma/pokesprite/blob/master/LICENSE)。
 - 上游《宝可梦传说：阿尔宙斯》精灵图片集合来自[National Pokédex – Icon Dex](https://www.deviantart.com/pikafan2000/art/National-Pokedex-Version-Delta-Icon-Dex-824897934)项目及其贡献者。
 
-这些项目为上游程序提供资源或组件。水银专用精灵图像改为从**内置的水银 1.1 提取资料**读取（数值 profile、地点、精灵图像，随应用更新）；该内置资料**待集成**，集成前仍从用户配置的 ROM 读取，具体资源选择由水银适配器处理。
+这些项目为上游程序提供资源或组件。水银专用精灵图像从**内置的水银 1.1 提取资料**读取（数值 profile、字表、地点、精灵图像、遭遇资料，随应用更新）；具体资源选择由水银适配器处理。
 
 ## 格式与文字资料
 
@@ -20,11 +20,11 @@ v0.2.0使用上游`PKHeX.WinForms`主窗口与编辑控件，并链接上游绘�
 - [Complete Fire Red Upgrade](https://github.com/Skeli789/Complete-Fire-Red-Upgrade)及[pret/pokefirered](https://github.com/pret/pokefirered)提供函数定位和引擎结构参考。
 - [Sum-Light/azoth-wiki](https://github.com/Sum-Light/azoth-wiki)及其公开HOME页面提供格式线索和可导入的中文字符映射。程序解析导入文件中的资料，不执行其中的JavaScript。
 
-v0.2.0未内嵌水银提取资料；开发分支将内置水银 1.1 的数值 profile、地点与精灵图像（**待集成**）。内置资料是由水银 1.1 提取的第三方游戏数据，**不包含完整 ROM 或个人存档**；其权利归各自权利人，**不自动受本项目代码 GPL 许可约束**。
+本版内置由水银 1.1 提取的资料：数值 profile、字表、地点、精灵图像与遭遇资料（默认挂载，供普通使用）。内置资料是第三方游戏数据，**不包含完整 ROM 或个人存档**；其权利归各自权利人，**不自动受本项目代码 GPL 许可约束**。公开 HOME 页面仅提供格式线索和可导入的中文字符映射，程序不执行其中的 JavaScript。
 
 ## 发行包与游戏资源
 
-发行包包含程序、代码许可、使用说明，以及由水银 1.1 提取的资料（数值 profile、地点、精灵图像；**待集成**）。发行包**不包含完整游戏 ROM、个人存档、提取音频或水银图片集合的完整集合**。用户本机的资料缓存（如旧的 `rom-cache.gba`、`profile`、`data-pack`）保存在本机数据目录。
+发行包包含程序、代码许可、使用说明，以及由水银 1.1 提取的资料（数值 profile、字表、地点、精灵图像、遭遇资料）。发行包**不包含完整游戏 ROM、个人存档或提取音频**。本机旧缓存（如 `rom-cache.gba`、`profile`、`data-pack`）保存于本机数据目录；程序优先使用内置资料。
 
 代码许可适用于代码；游戏、美术、音乐及第三方资料的权利归各自权利人所有。Pokémon及相关名称属于其权利人。
 
