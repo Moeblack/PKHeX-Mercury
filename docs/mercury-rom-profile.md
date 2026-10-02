@@ -10,6 +10,13 @@ Nothing here ships ROM bytes, sprite images, or a full game-data dump. The publi
 user's own ROM (plus an optional imported charmap), and a locally generated profile stays in a
 directory the caller supplies (the GUI passes its per-user default; see §5).
 
+> **Planned built-in data (development branch, not yet integrated).** The app will embed a Mercury 1.1
+> data pack in `PKHeX.Mercury.Core` resources: four files (numeric profile, locations, `sprites.zip`,
+> manifest) under `Resources/Mercury/1.1`, loaded directly from memory. The normal menu will no longer
+> offer ROM / charmap / profile / install prerequisites, will not read the legacy `%LOCALAPPDATA%`
+> profile or `data-pack`, and will not infer an older version from a save. Until the code is
+> integrated, the ROM/profile paths below remain the current sources.
+
 ## 1. Sources and verification
 
 | Source | Entry point | Hash check |
@@ -18,6 +25,7 @@ directory the caller supplies (the GUI passes its per-user default; see §5).
 | ROM-native research dir | `MercuryGameData.FromResearch(string root)` | `out/MANIFEST.json` and `out/sprites/sprite_manifest.json` `input.sha256` must match the same value |
 | Local profile | `MercuryGameData.LoadProfile(string directory)` | profile `romSha256` + the profile format/version |
 | No data | `MercuryGameData.NumericOnly()` | internal ids only, `HasData == false`, no sprites/growth |
+| Built-in 1.1 data pack (**planned, not yet integrated**) | Core resources `Resources/Mercury/1.1`: numeric profile, locations, `sprites.zip`, manifest; loaded from memory | pack manifest + per-file SHA-256 (as with the portable pack) |
 
 `FromResearch` consumes the existing outputs (`species.json`, `moves.json`/`move_names.json`,
 `items.json`, `ability_names.json`, `ability_display_names.json`, `charmap.json`,
