@@ -18,8 +18,11 @@
 | 4 | fix/mercury-issue-07-identifiers | ff7d6457d20107a5f163bb6cb2c0c0eff9494caa | 674597e56 | Preserve Mercury identifier evidence and unknown numeric values |
 | 5 | fix/mercury-issue-02-11-forms | 72c61eaff | 4d1ce1cc5 | Expose explicit Mercury sprite frame and palette-page selection |
 | 6 | fix/mercury-issue-07-identifiers | 772f737113e806b20c64751ace267c7e9215e44d（parent ff7d6457） | 251bfcc1e | Fix Mercury numeric-only strings factory empty ability slot |
+| 7 | mercury（Issue 1 核心单独提交，UI 未完成） | 3cb8d17d06bf688638d8d669a22b8c08df2a9d9f | 516bf4ee8 | Fix Mercury Unown forms and PID constraint preservation |
 
-集成分支 HEAD（本次记录时）：`251bfcc1e`。六次 cherry-pick 均干净落地，无冲突、无 ours/theirs 选择、未重写代码（第 5 次对 `MercuryGameData.cs` 自动合并成功）。
+集成分支 HEAD（本次记录时）：`516bf4ee8`。七次 cherry-pick 均已落地（第 7 次与 72c61eaff 交叉，冲突按 Main 单逐块解决，未选整文件 ours/theirs），未重写其它代码。
+
+第 7 次冲突解决要点：`MercurySpriteLoader` 保留新 selection/metadata 重载与 XML，旧重载改为转发并接受 `paletteIndex`；调色板读取保留 `paletteResourceIndex`（范围校验已存在）；`MercuryGameData.GetSpriteRgba` 用 `resolvedPaletteIndex = paletteIndex ?? (species == 201 ? 201 : index)`，Unown 默认强制调色板资源 201、调用者显式 paletteIndex 优先。自动合入的 `GetSpriteIndex` Unown 201 映射与 `MercuryPokemon`/`MercuryPKM` 的 PID/约束代码保留。Issue 1 的 UI 尚未完成，不标为完成。
 
 NumericOnly 字符串构造已修：`PKHeX.WinForms/Mercury/MercuryIntegration.cs` 的 abilities 数组改为 `Math.Max(1, data.AbilityNames.Count)`，当名称为 0 条时在 index 0 写入数字占位 `"0"`（原生 `GameStrings` 会清洗 index 0）。该提交来自分支 `fix/mercury-issue-07-identifiers` 的最终追加提交，其父为 ff7d6457；不使用曾出现的 c4d02ea67。**仅修字符串构造**，不宣称“无 ROM 完整编辑”已实现；真实失败与修后 4 组、72 组合×2 的字节保真验证日志保留在该工作分支验证记录中。
 
@@ -38,6 +41,7 @@ Issue 11 本次只完成帧/页 API：`MercurySpriteSelection(FrameIndex, Palett
 - 命令：`dotnet build PKHeX.Mercury.slnx -c Release -m:1`。
 - 结果：**已成功生成，0 警告，0 错误**（用时约 8.3 秒），产出 `PKHeX.dll`、`PKHeX.Mercury.Core.dll` 等。
 - 本次只做一次构建核对已合并代码，未运行额外测试或应用。
+- 集成 Issue 1 核心提交（Unown/PID，含冲突解决）后再次构建：**已成功生成，0 警告，0 错误**（约 7.95 秒）。构建日志保存在本机 `artifacts/integration-build-core.log`。
 
 ## 说明
 
