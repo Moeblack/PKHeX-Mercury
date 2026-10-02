@@ -469,8 +469,11 @@ internal static class MercuryIntegration
             for (int i = 0; i < items.Length; i++)
                 items[i] = data.Items[i].Name;
 
-            var abilities = new string[data.AbilityNames.Count];
-            for (int i = 0; i < abilities.Length; i++)
+            // Native GameStrings sanitizes index 0 even when no ability names are loaded.
+            var abilities = new string[Math.Max(1, data.AbilityNames.Count)];
+            if (data.AbilityNames.Count == 0)
+                abilities[0] = "0";
+            for (int i = 0; i < data.AbilityNames.Count; i++)
                 abilities[i] = data.AbilityNames[i];
 
             var strings = GameStrings.CreateMercury(lang, species, moves, items, abilities, data.GetBallNames(lang), data.GetLocationNames(lang));
