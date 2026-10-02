@@ -41,7 +41,7 @@ public sealed class MercuryGameData
     private MercuryGameData(
         string romSha256,
         string source,
-        List<MercurySpecies> species,
+        IReadOnlyList<MercurySpecies> species,
         List<MercuryMove> moves,
         List<MercuryItem> items,
         MercuryTextCodec text,
