@@ -49,6 +49,15 @@ public static class MercuryLegalityAnalysis
             checks.Add(CheckLearning($"{code}.known-learning", move, species, levelUp, speciesData && moveData));
         }
 
+        var distribution = MercuryDistributionCatalog.Match(pk);
+        var distributionCheck = distribution is null
+            ? new MercuryLegalityCheck("distribution.reference", MercuryCheckStatus.Unknown,
+                "未匹配固定版本的4条公开配信原始内容；升级、改名或进化后内容可能不同，未匹配不代表非法；不猜测可变字段。")
+            : new MercuryLegalityCheck("distribution.reference", MercuryCheckStatus.Pass,
+                $"完整58字节内容匹配公开配信「{distribution.Label}」；来源：{distribution.SourceUrl}；commit={distribution.SourceCommit}。"
+                + "仅证明参考内容一致，不证明真实领取或身份，不是密码学认证，也不代表完整合法。");
+        checks.Add(distributionCheck);
+
         string encounterReport;
         var fieldMatchStatus = MercuryCheckStatus.Unknown;
         if (hasRom && data!.RomVersion != MercuryRomVersion.V1_1)
@@ -61,8 +70,12 @@ public static class MercuryLegalityAnalysis
             encounterReport = match.Evidence;
             fieldMatchStatus = match.FieldMatchStatus;
         }
-        checks.Add(new MercuryLegalityCheck("encounter.record-fields", fieldMatchStatus, encounterReport));
-        checks.Add(new MercuryLegalityCheck("encounter.source", MercuryCheckStatus.Unknown, encounterReport));
+        checks.Add(new MercuryLegalityCheck("encounter.record-fields", fieldMatchStatus,
+            "普通遭遇记录诊断（不含公开配信参考）：" + encounterReport));
+        checks.Add(distribution is null
+            ? new MercuryLegalityCheck("encounter.source", MercuryCheckStatus.Unknown, encounterReport)
+            : new MercuryLegalityCheck("encounter.source", MercuryCheckStatus.Pass,
+                "公开配信原始内容来源匹配（仅限完整58字节参考内容）；" + distributionCheck.Evidence));
         return new MercuryLegalityResult(checks);
     }
 
