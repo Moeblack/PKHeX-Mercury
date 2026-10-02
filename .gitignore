@@ -232,3 +232,14 @@ pingme.txt
 #################
 
 *.userprefs
+
+# Mercury: user-owned game data and local build/verification outputs.
+*.gba
+*.srm
+*.sav
+*.m3box
+artifacts/
+private/
+mercury-profile/
+game_data.js
+charmap.json

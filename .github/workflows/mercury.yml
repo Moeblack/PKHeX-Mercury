@@ -1,0 +1,46 @@
+name: Mercury build and format checks
+
+on:
+  push:
+    branches: [mercury]
+  pull_request:
+    branches: [mercury]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  mercury:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+      - name: Build Mercury solution
+        run: dotnet build PKHeX.Mercury.slnx -c Release
+      - name: Synthetic save and entity checks (no private game data)
+        run: dotnet run --project Tests/PKHeX.Mercury.Tests -c Release --no-build -- --report artifacts/verification.json
+      - name: WinForms controls and editing scenarios (synthetic save)
+        run: dotnet run --project Tests/PKHeX.Mercury.UITests -c Release --no-build -- artifacts/ui-checks
+      - name: Publish Windows x64 portable application
+        run: dotnet publish PKHeX.Mercury/PKHeX.Mercury.csproj -c Release -r win-x64 --self-contained true -o artifacts/publish
+      - name: Add license and usage information
+        shell: pwsh
+        run: |
+          Copy-Item LICENSE artifacts/publish/LICENSE.txt
+          Copy-Item README.md artifacts/publish/README.md
+          Copy-Item docs artifacts/publish/docs -Recurse
+      - uses: actions/upload-artifact@v4
+        with:
+          name: PKHeX-Mercury-win-x64
+          path: artifacts/publish/
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: Mercury-verification
+          path: |
+            artifacts/verification.json
+            artifacts/ui-checks/verification-ui.json
+          if-no-files-found: ignore

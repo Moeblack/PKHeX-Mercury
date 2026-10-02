@@ -1,0 +1,32 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <UseWindowsForms>true</UseWindowsForms>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <AssemblyName>PKHeX.Mercury</AssemblyName>
+    <RootNamespace>PKHeX.Mercury</RootNamespace>
+    <Version>0.1.0</Version>
+    <Product>PKHeX Mercury 水银版</Product>
+    <AssemblyTitle>PKHeX Mercury / 水银版</AssemblyTitle>
+    <Company>Unofficial Mercury editor</Company>
+    <Authors>Mercury editor contributors</Authors>
+    <Copyright>Unofficial fan project. Not affiliated with Project Pokémon or PKHeX.</Copyright>
+    <Description>PKHeX Mercury 水银 1.1 专用桌面编辑器（非官方）。</Description>
+    <PackageLicenseExpression>GPL-3.0-or-later</PackageLicenseExpression>
+    <ApplicationHighDpiMode>PerMonitorV2</ApplicationHighDpiMode>
+    <ApplicationUseCompatibleTextRendering>false</ApplicationUseCompatibleTextRendering>
+    <ApplicationVisualStyles>true</ApplicationVisualStyles>
+    <EnableWindowsTargeting>true</EnableWindowsTargeting>
+    <ProduceReferenceAssembly>false</ProduceReferenceAssembly>
+    <NeutralLanguage>zh-Hans</NeutralLanguage>
+    <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../PKHeX.Mercury.Core/PKHeX.Mercury.Core.csproj" />
+  </ItemGroup>
+
+</Project>
