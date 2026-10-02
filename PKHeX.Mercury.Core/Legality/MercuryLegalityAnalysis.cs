@@ -20,7 +20,7 @@ public static class MercuryLegalityAnalysis
         return Analyze(pk.ToMercuryPokemon(), pk.GameData, encounterEvidence);
     }
 
-    /// <summary>Checks native stored identifiers against the already loaded data; null data stays unknown.</summary>
+    /// <summary>Checks stored fields; table-dependent checks need loaded data, while RNG correlation is purely numeric.</summary>
     public static MercuryLegalityResult Analyze(MercuryPokemon pk, MercuryGameData? data, MercuryEncounterEvidence? encounterEvidence = null)
     {
         ArgumentNullException.ThrowIfNull(pk);
@@ -35,6 +35,7 @@ public static class MercuryLegalityAnalysis
                 "内部species ID", "0为空记录，不是非法种类；不对空槽推断获取来源"),
             CheckRange("held-item.range", pk.HeldItem, MercuryRomLayout.ItemCount, itemData,
                 "携带道具表索引", "0表示未携带道具"),
+            CheckMethod1(pk),
         };
 
         MercurySpecies? species = speciesData && pk.Species > 0 && pk.Species < MercuryRomLayout.SpeciesCount
@@ -63,6 +64,23 @@ public static class MercuryLegalityAnalysis
         checks.Add(new MercuryLegalityCheck("encounter.record-fields", fieldMatchStatus, encounterReport));
         checks.Add(new MercuryLegalityCheck("encounter.source", MercuryCheckStatus.Unknown, encounterReport));
         return new MercuryLegalityResult(checks);
+    }
+
+    private static MercuryLegalityCheck CheckMethod1(MercuryPokemon pk)
+    {
+        const string code = "rng.method1";
+        if (pk.Species == 0)
+            return new(code, MercuryCheckStatus.Unknown, "species 0为空槽，不对空记录推断个体PID/IV相关性。");
+
+        // IVs exposes six five-bit values in HP/Atk/Def/Spe/SpA/SpD order, without egg/ability flags.
+        var ivs = pk.IVs;
+        uint iv32 = (uint)ivs[0] | ((uint)ivs[1] << 5) | ((uint)ivs[2] << 10)
+            | ((uint)ivs[3] << 15) | ((uint)ivs[4] << 20) | ((uint)ivs[5] << 25);
+        if (MethodFinder.GetLCRNGMethod1Match(pk.PID, iv32, out uint seed))
+            return new(code, MercuryCheckStatus.Pass,
+                $"符合基础Method1数值相关性，不证明该来源必用此方法，也不代表完整合法；数值候选seed=0x{seed:X8}，不是已还原的真实捕获种子。");
+        return new(code, MercuryCheckStatus.Unknown,
+            "未匹配基础Method1数值相关性；CFRU同步性格、闪光后处理或IV覆盖可能打破该关系，不能据此判为非法，也不代表完整来源已核对。");
     }
 
     private static bool HasShape<T>(IReadOnlyList<T> table, int count, Func<T, int> getId)
