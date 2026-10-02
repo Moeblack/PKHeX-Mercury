@@ -72,11 +72,26 @@ public sealed class MercuryDataPackReader
 
     public IReadOnlyList<MercuryPackLocation> GetLocations() => _locations;
 
+    /// <summary>Renders the raw resource without entity-specific PID postprocessing.</summary>
     public bool TryGetFront(int resourceIndex, int paletteIndex, bool shiny, MercurySpriteSelection selection,
         out byte[] rgba, out MercurySpriteMetadata metadata)
         => TryGetFront(resourceIndex, paletteIndex, shiny, selection, out rgba, out metadata, out _);
 
     public bool TryGetFront(int resourceIndex, int paletteIndex, bool shiny, MercurySpriteSelection selection,
+        out byte[] rgba, out MercurySpriteMetadata metadata, out MercuryPackReadStatus status)
+        => TryGetFrontCore(resourceIndex, paletteIndex, shiny, null, selection, out rgba, out metadata, out status);
+
+    /// <summary>Renders an entity front resource, applying its PID-dependent indexed operation before frame selection.</summary>
+    public bool TryGetFront(int resourceIndex, int paletteIndex, bool shiny, uint pid, MercurySpriteSelection selection,
+        out byte[] rgba, out MercurySpriteMetadata metadata)
+        => TryGetFront(resourceIndex, paletteIndex, shiny, pid, selection, out rgba, out metadata, out _);
+
+    /// <summary>Entity rendering; raw cached payloads remain unchanged for other PIDs and raw-resource callers.</summary>
+    public bool TryGetFront(int resourceIndex, int paletteIndex, bool shiny, uint pid, MercurySpriteSelection selection,
+        out byte[] rgba, out MercurySpriteMetadata metadata, out MercuryPackReadStatus status)
+        => TryGetFrontCore(resourceIndex, paletteIndex, shiny, pid, selection, out rgba, out metadata, out status);
+
+    private bool TryGetFrontCore(int resourceIndex, int paletteIndex, bool shiny, uint? pid, MercurySpriteSelection selection,
         out byte[] rgba, out MercurySpriteMetadata metadata, out MercuryPackReadStatus status)
     {
         rgba = [];
@@ -104,6 +119,11 @@ public sealed class MercuryDataPackReader
         {
             status = MercuryPackReadStatus.InvalidSelection;
             return false;
+        }
+        if (pid is { } personality && resourceIndex == MercuryPidSpots.ResourceIndex)
+        {
+            tiles = (byte[])tiles.Clone(); // ReadPayload returns shared cached bytes, never modify them.
+            MercuryPidSpots.Apply(tiles, resourceIndex, personality);
         }
         int frameOffset = selection.FrameIndex * 2048, paletteOffset = selection.PalettePage * 32;
         Span<int> colors = stackalloc int[16];

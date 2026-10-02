@@ -78,6 +78,7 @@ internal static class MercurySpriteLoader
         int palettePageCount = paletteBytes.Length / MercuryRomLayout.PaletteBytes;
         if (selection.FrameIndex >= frameCount || selection.PalettePage >= palettePageCount)
             return false;
+        MercuryPidSpots.Apply(tiles, resourceIndex, pid);
         int frameOffset = selection.FrameIndex * MercuryRomLayout.SpriteFrameBytes;
         int paletteOffset = selection.PalettePage * MercuryRomLayout.PaletteBytes;
 

@@ -623,7 +623,7 @@ public sealed class MercuryGameData
                 return null;
         }
         else if (_pack is null || !_pack.TryGetFront(index, resolvedPaletteIndex, MercurySpriteLoader.IsShiny(pid, trainerId),
-                     selection, out rgba, out metadata))
+                     pid, selection, out rgba, out metadata))
         {
             return null;
         }
