@@ -13,6 +13,37 @@ public static class MercuryFormCatalog
     private static readonly IReadOnlyDictionary<ushort, MercuryFormMechanism> Known =
         new Dictionary<ushort, MercuryFormMechanism>
         {
+            [3] = CreateTransitions(3,
+            [
+                new(3, 1260, 253, 1,
+                    "Conditional conversion: 0x09D1EE02 requires a nonzero selector flag and method 253 / param != 0. " +
+                    "Caller 0x09D1EE3C reads mon+0x47 bit 3 and applies additional runtime gates. " +
+                    "0x09D1EEB4 calls the party-species writer. Other persistence conditions remain unproven.",
+                    3, [0x097890E2, 0x09D1EE02, 0x09D1EE7E, 0x09D1EEB4, 0x09D3078A, 0x0804076A]),
+                new(3, 869, 254, 533,
+                    "Conditional conversion: the sample has auxiliary value 0; 0x09D42562 compares mon+0x22 " +
+                    "(item index) with parameter 533. Additional runtime gates in 0x09D424B8 and 0x09D42590 apply. " +
+                    "0x09D425D4 calls the party-species writer. Other persistence conditions remain unproven.",
+                    3, [0x097890DA, 0x09D424B8, 0x09D42562, 0x09D425CA, 0x09D425D4, 0x0804076A]),
+            ]),
+            [1260] = CreateTransitions(1260,
+            [
+                new(1260, 3, 253, 0,
+                    "Fallback, not the forward trigger: 0x09D1EF68 matches method 253 / param 0; " +
+                    "0x09D1EFDC writes the returned species at mon+0x20. The covered 0x09D0C864 " +
+                    "party-receive/copy path invokes this before copying 100 bytes into a party slot. " +
+                    "Other persistence conditions remain unproven.",
+                    null, [0x097B055A, 0x09D1EF68, 0x09D1EFE2, 0x09D1EFEE, 0x08040B14, 0x09D0C874, 0x09D0C8C8]),
+            ]),
+            [869] = CreateTransitions(869,
+            [
+                new(869, 3, 254, 0,
+                    "Fallback, not an item-533 requirement: 0x09D423E4 matches method 254 / param 0 " +
+                    "and writes the returned species at mon+0x20. The covered 0x09D0C864 " +
+                    "party-receive/copy path invokes this before copying 100 bytes into a party slot. " +
+                    "Other persistence conditions remain unproven.",
+                    null, [0x097A41DA, 0x09D423E4, 0x09D4240C, 0x08040B14, 0x09D0C86E, 0x09D0C8C8]),
+            ]),
             [201] = CreateUnown(),
             [0x1F6] = CreateGender(0x1F6, 0x2E8, 0x0940E308, 0x0940E32E),
             [0x1F7] = CreateGender(0x1F7, 0x2E9, 0x0940E310, 0x0940E334),
@@ -42,6 +73,12 @@ public static class MercuryFormCatalog
             MercuryFormMechanismKind.Unresolved,
             "No proven form mechanism or persistent base/form-to-internal-species mapping in this catalog.",
             MercuryFormContext.None, [], []);
+
+    private static MercuryFormMechanism CreateTransitions(ushort species, MercurySpeciesTransition[] transitions)
+        => new(species, MercuryFormMechanismKind.ConditionalSpeciesTransition,
+            "Proven conditional party-species writes and reversal on the covered receive/copy path; " +
+            "not a permanent Form field. Only these individually traced sample relations are admitted.",
+            MercuryFormContext.TransitionConditions, [0x09D3078A, 0x0804076A, 0x09D0C864], [], transitions);
 
     private static MercuryFormMechanism CreateUnown()
     {

@@ -10,6 +10,7 @@ public enum MercuryFormMechanismKind
     PidDerived,
     GenderDependentResource,
     RuntimeDependentResource,
+    ConditionalSpeciesTransition,
 }
 
 /// <summary>Inputs required by the documented ROM selector; these are not new save fields.</summary>
@@ -20,6 +21,8 @@ public enum MercuryFormContext
     Pid = 1,
     RomGenderRatio = 2,
     RuntimeState = 4,
+    /// <summary>See each transition's Condition; no single persistent Form field represents these prerequisites.</summary>
+    TransitionConditions = 8,
 }
 
 /// <summary>
@@ -58,7 +61,8 @@ public sealed class MercuryFormOption
 public sealed class MercuryFormMechanism
 {
     internal MercuryFormMechanism(ushort species, MercuryFormMechanismKind kind, string selectionSource,
-        MercuryFormContext requiredContext, uint[] evidenceAddresses, MercuryFormOption[] options)
+        MercuryFormContext requiredContext, uint[] evidenceAddresses, MercuryFormOption[] options,
+        MercurySpeciesTransition[]? transitions = null)
     {
         BaseSpecies = species;
         Kind = kind;
@@ -66,6 +70,7 @@ public sealed class MercuryFormMechanism
         RequiredContext = requiredContext;
         EvidenceAddresses = Array.AsReadOnly(evidenceAddresses);
         Options = Array.AsReadOnly(options);
+        Transitions = Array.AsReadOnly(transitions ?? []);
     }
 
     public ushort BaseSpecies { get; }
@@ -75,9 +80,12 @@ public sealed class MercuryFormMechanism
     public IReadOnlyList<uint> EvidenceAddresses { get; }
     public IReadOnlyList<MercuryFormOption> Options { get; }
 
+    /// <summary>Proven outgoing species transitions; not writable Form options.</summary>
+    public IReadOnlyList<MercurySpeciesTransition> Transitions { get; }
+
     /// <summary>
     /// Only the existing species-201 Form/PID editor is proven. This does not imply a separate stored form byte.
-    /// Resource-only and unresolved mechanisms must not create a Species or runtime-state setter.
+    /// Resource-only, conditional-transition and unresolved mechanisms must not create a form or runtime-state setter.
     /// </summary>
     public bool CanEditStoredForm => BaseSpecies == 201 && Kind == MercuryFormMechanismKind.PidDerived;
 }
