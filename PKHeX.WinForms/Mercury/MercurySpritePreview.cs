@@ -129,9 +129,9 @@ internal sealed class MercurySpritePreview : Form
 
     private void LoadResources()
     {
-        if (!_snapshot.GameData.HasSprites)
+        if (!_snapshot.GameData.HasSpriteResources)
         {
-            _status.Text = L("NoRom", "Cannot render: this snapshot's data source has no loaded ROM.");
+            _status.Text = L("NoResources", "Cannot render: this snapshot has neither ROM nor data-pack sprite resources.");
             return;
         }
 

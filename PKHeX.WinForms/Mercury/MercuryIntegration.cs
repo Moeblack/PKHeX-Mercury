@@ -62,7 +62,7 @@ internal static class MercuryIntegration
 
     private static void TryApplyCachedCharmap()
     {
-        if (_data is null)
+        if (_data is null || _data.Source == "pack")
             return;
         try
         {
@@ -363,10 +363,14 @@ internal static class MercuryIntegration
 
         try
         {
-            var data = MercuryGameData.LoadProfile(fbd.SelectedPath);
-            data.SaveProfile(ProfileDirectory);
+            bool isPack = File.Exists(Path.Combine(fbd.SelectedPath, MercuryDataPackManifest.FileName));
+            var data = isPack ? MercuryGameData.LoadPack(fbd.SelectedPath) : MercuryGameData.LoadProfile(fbd.SelectedPath);
+            if (!isPack)
+                data.SaveProfile(ProfileDirectory);
             Publish(data);
-            WinFormsUtil.Alert(L("ProfileLoaded", "水银配置已加载。"), $"{fbd.SelectedPath}");
+            WinFormsUtil.Alert(isPack
+                ? L("PackLoaded", "Data pack loaded for this session (not installed as the default).")
+                : L("ProfileSaved", "Mercury profile loaded and saved as the default."), fbd.SelectedPath);
         }
         catch (Exception e)
         {

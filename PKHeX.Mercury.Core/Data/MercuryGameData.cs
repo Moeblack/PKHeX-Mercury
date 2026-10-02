@@ -32,6 +32,7 @@ public sealed class MercuryGameData
     private readonly string[] _abilityNames;
     private readonly uint[][] _growth;
     private readonly byte[]? _rom;
+    private readonly MercuryDataPackReader? _pack;
     private readonly string _romSha256;
     private readonly string _source;
 
@@ -44,7 +45,8 @@ public sealed class MercuryGameData
         MercuryTextCodec text,
         string[] abilityNames,
         uint[][] growth,
-        byte[]? rom)
+        byte[]? rom,
+        MercuryDataPackReader? pack = null)
     {
         _romSha256 = romSha256;
         _source = source;
@@ -55,6 +57,7 @@ public sealed class MercuryGameData
         _abilityNames = abilityNames;
         _growth = growth;
         _rom = rom;
+        _pack = pack;
     }
 
     /// <summary>SHA-256 of the ROM this data was read from; empty for <see cref="NumericOnly"/>.</summary>
@@ -63,7 +66,7 @@ public sealed class MercuryGameData
     /// <summary>The exact known ROM version, or null for numeric-only data.</summary>
     public MercuryRomVersion? RomVersion => MercuryRomVersion.TryGetBySha256(_romSha256, out var version) ? version : null;
 
-    /// <summary>Where the data came from: "rom", "research", "profile" or "numeric".</summary>
+    /// <summary>Where the data came from: "rom", "research", "profile", "pack" or "numeric".</summary>
     public string Source => _source;
 
     public IReadOnlyList<MercurySpecies> Species => _species;
@@ -85,8 +88,14 @@ public sealed class MercuryGameData
     /// <summary>True when growth experience tables are available (GetLevel/GetExperience work).</summary>
     public bool HasGrowthTables => _growth.Length == MercuryRomLayout.GrowthRateCount;
 
-    /// <summary>True when a ROM is held for native sprite rendering.</summary>
+    /// <summary>Compatibility ROM-only gate. Use HasSpriteResources for resource display, not evidence checks.</summary>
     public bool HasSprites => _rom is not null;
+
+    /// <summary>True only while the exact version-verified ROM bytes are held.</summary>
+    public bool HasVerifiedRom => _rom is not null;
+
+    /// <summary>True when either ROM bytes or a validated portable pack can supply sprite resources.</summary>
+    public bool HasSpriteResources => _rom is not null || _pack is not null;
 
     /// <summary>Ids only, no names. Useful before a ROM/profile is loaded.</summary>
     public static MercuryGameData NumericOnly()
@@ -293,7 +302,25 @@ public sealed class MercuryGameData
         return new MercuryGameData(profile.RomSha256, numericProfile ? "numeric" : "profile", species, moves, items, codec, profile.AbilityNames, growth, rom);
     }
 
-    /// <summary>Writes this data (including the imported charmap, if any) to <paramref name="directory"/>.</summary>
+    /// <summary>Loads a validated portable pack without loading any ROM file or elevating ROM evidence gates.</summary>
+    public static MercuryGameData LoadPack(string directory)
+    {
+        var pack = new MercuryDataPackReader(directory);
+        var profile = MercuryProfile.Load(pack.ProfileDirectory);
+        if (profile.RomPath is not null || File.Exists(Path.Combine(pack.ProfileDirectory, MercuryProfile.RomCacheFileName)))
+            throw new InvalidDataException("A portable data pack must not contain or reference a ROM cache.");
+        var data = LoadProfile(pack.ProfileDirectory);
+        var counts = pack.Manifest.Counts;
+        if (data._rom is not null || !string.Equals(data.RomSha256, pack.SourceRomSha, StringComparison.OrdinalIgnoreCase) ||
+            data.Species.Count != counts.Species || data.Moves.Count != counts.Moves || data.Items.Count != counts.Items ||
+            data.AbilityNames.Count != counts.AbilityNames || data._growth.Length != counts.GrowthRows ||
+            data._growth.Any(row => row.Length != counts.GrowthLevels) || pack.GetLocations().Count != counts.Locations)
+            throw new InvalidDataException("The numeric profile does not match the validated data pack.");
+        return new MercuryGameData(data._romSha256, "pack", data._species, data._moves, data._items,
+            data._text, data._abilityNames, data._growth, null, pack);
+    }
+
+    /// <summary>Writes numeric/profile data and the imported charmap, not an attached portable pack's image/location resources.</summary>
     public void SaveProfile(string directory)
     {
         // Persist the ROM locally next to the profile when held, so sprites/growth still work after a
@@ -370,6 +397,12 @@ public sealed class MercuryGameData
     public MercuryGameData WithTextCodec(MercuryTextCodec codec)
     {
         ArgumentNullException.ThrowIfNull(codec);
+        if (_pack is not null)
+        {
+            if (ReferenceEquals(codec, _text))
+                return this;
+            throw new NotSupportedException("A portable data pack has no original name bytes to re-decode; reload its source ROM to change the charmap.");
+        }
         if (_rom is not null)
             return FromRom(_rom, codec);
         if (_source == "numeric")
@@ -396,18 +429,21 @@ public sealed class MercuryGameData
     public byte[]? GetTypeSpriteRgba(byte type, out int width, out int height)
     {
         width = height = 0;
-        return _rom is not null && MercurySpriteLoader.TryRenderType(_rom, type, out var rgba, out width, out height)
-            ? rgba : null;
+        if (_rom is not null)
+            return MercurySpriteLoader.TryRenderType(_rom, type, out var rgba, out width, out height) ? rgba : null;
+        return _pack is not null && _pack.TryGetTypeRgba(type, out var packed, out width, out height, out _) ? packed : null;
     }
 
     /// <summary>
     /// Item icon rendered from this ROM's own per-item tiles/palette pointers (consumer 0x08098974).
-    /// Icons are always 24x24; returns null when the ROM is absent or the entry/pointers are unusable.
+    /// Icons are always 24x24; a portable pack supplies its indexed RGBA output when no ROM is held.
     /// </summary>
     public byte[]? GetItemSpriteRgba(int item, out int width, out int height)
     {
         width = height = 0;
-        if (_rom is null || !MercurySpriteLoader.TryRenderItem(_rom, item, out var rgba))
+        if (_rom is null)
+            return _pack is not null && _pack.TryGetItemRgba(item, out var packed, out width, out height, out _) ? packed : null;
+        if (!MercurySpriteLoader.TryRenderItem(_rom, item, out var rgba))
             return null;
         width = MercurySpriteLoader.ItemIconWidth;
         height = MercurySpriteLoader.ItemIconHeight;
@@ -419,13 +455,21 @@ public sealed class MercuryGameData
         => MercuryIdentifierCatalog.GetNames(GetLocationIdentifiers(language), language);
 
     public MercuryIdentifier[] GetLocationIdentifiers(string language = "zh")
-        => MercuryIdentifierCatalog.CreateLocations(_rom, _text, language);
+    {
+        var entries = MercuryIdentifierCatalog.CreateLocations(_rom, _text, language);
+        if (_pack is null)
+            return entries;
+        foreach (var location in _pack.GetLocations())
+            entries[location.Id] = entries[location.Id] with { State = location.State, Name = location.Name };
+        return entries;
+    }
 
     public byte[]? GetBallSpriteRgba(byte ball, out int width, out int height)
     {
         width = height = 0;
-        return _rom is not null && MercurySpriteLoader.TryRenderBall(_rom, ball, out var rgba, out width, out height)
-            ? rgba : null;
+        if (_rom is not null)
+            return MercurySpriteLoader.TryRenderBall(_rom, ball, out var rgba, out width, out height) ? rgba : null;
+        return _pack is not null && _pack.TryGetBallRgba(ball, out var packed, out width, out height, out _) ? packed : null;
     }
 
     /// <summary>
@@ -540,13 +584,19 @@ public sealed class MercuryGameData
         width = 0;
         height = 0;
         metadata = default;
-        if (_rom is null)
-            return null;
-
         int index = GetSpriteIndex(species, pid, runtimeState);
         int resolvedPaletteIndex = paletteIndex ?? (species == 201 ? 201 : index);
-        if (!MercurySpriteLoader.TryRender(_rom, index, pid, trainerId, selection, out byte[] rgba, out metadata, resolvedPaletteIndex))
+        byte[] rgba;
+        if (_rom is not null)
+        {
+            if (!MercurySpriteLoader.TryRender(_rom, index, pid, trainerId, selection, out rgba, out metadata, resolvedPaletteIndex))
+                return null;
+        }
+        else if (_pack is null || !_pack.TryGetFront(index, resolvedPaletteIndex, MercurySpriteLoader.IsShiny(pid, trainerId),
+                     selection, out rgba, out metadata))
+        {
             return null;
+        }
 
         width = MercurySpriteLoader.Width;
         height = MercurySpriteLoader.Height;
