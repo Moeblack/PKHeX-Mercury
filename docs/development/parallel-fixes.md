@@ -40,8 +40,11 @@
 | 26 | fix/mercury-issue-05-pack-runtime | 4aff0327c4868f35ea2053f69b99ff330746b034 | bdfb6d2cf | feat(mercury): load portable pack resources without ROM evidence promotion |
 | 27 | fix/mercury-issue-05-pack-runtime | d7702cbac5f3cb25376ac158aa0108f12dc6dde3 | 6f0a22a95 | feat(mercury): install local default packs with backup rollback |
 | 28 | fix/mercury-issue-06-shared-learnset | 786732724a7c47828df68b31e237023032677aaa | ec1836d90 | Cache shared native learnsets for Mercury species snapshots |
+| 29 | fix/mercury-issue-06-fieldmatch | 4b5b8f1036120b48b9408faea3d4a30e13d4ee79 | 3c625819e | Separate Mercury encounter field matches from source coverage |
 
-集成分支 pick HEAD（本次记录时）：`2a2fa246f9`（ec1836d90 之上为界面同步提交 2a2fa246f9）。二十八次 cherry-pick 均已落地：冲突发生于第 7、15、23、26 次并按规则解决；其余无冲突或仅语言文件纯新增自动合并。
+集成分支 pick HEAD（本次记录时）：`3c625819e`。二十九次 cherry-pick 均已落地：冲突发生于第 7、15、23、26 次并按规则解决；其余无冲突或仅语言文件纯新增自动合并。
+
+第 29 次增量说明（Issue 6 仍部分）：字段匹配仅对已接受资料的普通三字段命中判 `Pass`，`source` 仍为 `Unknown`、聚合仍为 `Unknown`；新增 `docs/mercury-encounter-field-matching.md` 仅记本增量范围，**不是 gift 完整规则**；gift 131/25/134 尚未导入。验证：solution 构建 0 警告 0 错误；`MercuryEncounterFieldMatchTests` **26/26 通过、0 跳过**（`MERCURY_TEST_ROM` 设为已知 v1.1）。未跑全库、未重跑 installer。
 
 第 28 次合并后接口同步（单独提交 `2a2fa246f9`）：提交把字段改为 `IReadOnlyList<MercurySpecies> _species`，但主构造函数第 3 参仍为 `List<MercurySpecies>`，与 `LoadPack` 传入的只读快照不兼容（CS1503）。按 Main 批准将其同步为 `IReadOnlyList<MercurySpecies>`，保留既有 `Array.AsReadOnly(species.ToArray())` 快照，不在 `LoadPack` 额外 `ToList` 复制；属接口同步，无行为变化。
 
@@ -112,6 +115,8 @@ Issue 11 本次只完成帧/页 API：`MercurySpriteSelection(FrameIndex, Palett
 - 集成 Issue 6 两次 + Issue 11 运行态提交后构建：**已成功生成，0 警告，0 错误**（约 10.84 秒）。构建日志保存在本机 `artifacts/integration-build-issue6-11b.log`。
 - 集成 host gate 与 Issue 7 identifier 提交后构建：**已成功生成，0 警告，0 错误**（约 7.07 秒）。构建日志保存在本机 `artifacts/integration-build-gate-ident.log`。
 - 集成 pack 四提交后构建：**已成功生成，0 警告，0 错误**（约 7.59 秒）。构建日志保存在本机 `artifacts/integration-build-pack4.log`。
+- 集成共享学习表提交后构建：**已成功生成，0 警告，0 错误**（约 6.88 秒）。日志 `artifacts/integration-build-shared-learnset.log`。
+- 集成字段匹配提交后构建：**已成功生成，0 警告，0 错误**（约 7.43 秒）。日志 `artifacts/integration-build-field-match.log`。
 
 ## Issue 3（729 号道具图像）：阻塞结论
 
