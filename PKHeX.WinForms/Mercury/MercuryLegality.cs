@@ -13,18 +13,18 @@ internal static class MercuryLegality
     public static List<string> Evaluate(MercuryPKM pk)
         => MercuryLegalityAnalysis.Analyze(pk, MercuryEncounterContext.TryGet(pk.GameData)).Checks
             .Where(z => z.Status != MercuryCheckStatus.Pass)
-            .Select(z => $"[{z.Code}] {z.Status}: {z.Evidence}").ToList();
+            .Select(z => $"[{z.Code}] {RoleText(z.Role)} / {StatusText(z.Status)}: {z.Evidence}").ToList();
 
     public static void Show(IWin32Window owner, MercuryPKM pk)
     {
         var result = MercuryLegalityAnalysis.Analyze(pk, MercuryEncounterContext.TryGet(pk.GameData));
         string report = string.Join(Environment.NewLine + Environment.NewLine,
-            result.Checks.Select(z => $"[{z.Code}] {StatusText(z.Status)}{Environment.NewLine}{z.Evidence}"));
+            result.Checks.Select(z => $"[{z.Code}] {RoleText(z.Role)} / {StatusText(z.Status)}{Environment.NewLine}{z.Evidence}"));
         TaskDialog.ShowDialog(owner, new TaskDialogPage
         {
             Caption = "Mercury",
             Heading = $"水银已覆盖检查：{StatusText(result.Status)}",
-            Text = result.Summary + "\n未运行原版LegalityAnalysis；不提供完整合法绿勾。",
+            Text = result.Summary + "\n辅助诊断的Unknown不阻止适用检查通过；任何Invalid仍优先。\n未运行原版LegalityAnalysis；不提供完整合法绿勾。",
             Expander = new TaskDialogExpander
             {
                 CollapsedButtonText = "逐项证据与缺口",
@@ -39,10 +39,16 @@ internal static class MercuryLegality
         });
     }
 
+    private static string RoleText(MercuryCheckRole role) => role switch
+    {
+        MercuryCheckRole.Diagnostic => "Diagnostic 辅助诊断（不单独决定总结果）",
+        _ => "Required 适用检查",
+    };
+
     private static string StatusText(MercuryCheckStatus status) => status switch
     {
         MercuryCheckStatus.Invalid => "Invalid（无效）",
-        MercuryCheckStatus.Pass => "Pass（已检查字段通过）",
+        MercuryCheckStatus.Pass => "Pass（已覆盖检查通过）",
         _ => "Unknown（未知）",
     };
 

@@ -12,8 +12,15 @@ public enum MercuryCheckStatus
     Invalid,
 }
 
+/// <summary>Whether an unknown check blocks the evidence-scoped aggregate; Invalid always does.</summary>
+public enum MercuryCheckRole
+{
+    Required,
+    Diagnostic,
+}
+
 /// <summary>A stable rule identifier, its limited conclusion, and the supporting evidence or gap.</summary>
-public sealed record MercuryLegalityCheck(string Code, MercuryCheckStatus Status, string Evidence);
+public sealed record MercuryLegalityCheck(string Code, MercuryCheckStatus Status, string Evidence, MercuryCheckRole Role = MercuryCheckRole.Required);
 
 /// <summary>Aggregates only the checks supplied; even Pass does not certify complete legality.</summary>
 public sealed class MercuryLegalityResult
@@ -24,7 +31,7 @@ public sealed class MercuryLegalityResult
     public string Summary => Status switch
     {
         MercuryCheckStatus.Invalid => "已检查字段存在无效值；未覆盖规则仍未知。",
-        MercuryCheckStatus.Pass => "已检查字段通过；不代表完整合法性。",
+        MercuryCheckStatus.Pass => "已覆盖的适用检查通过；不代表完整游戏合法性。",
         _ => "未知：证据或规则覆盖不足，不能判定完整合法性。",
     };
 
@@ -34,7 +41,8 @@ public sealed class MercuryLegalityResult
         var snapshot = checks.ToArray();
         Checks = Array.AsReadOnly(snapshot);
         Status = snapshot.Any(z => z.Status == MercuryCheckStatus.Invalid) ? MercuryCheckStatus.Invalid
-            : snapshot.Length == 0 || snapshot.Any(z => z.Status == MercuryCheckStatus.Unknown) ? MercuryCheckStatus.Unknown
+            : !snapshot.Any(z => z.Role == MercuryCheckRole.Required)
+                || snapshot.Any(z => z.Role == MercuryCheckRole.Required && z.Status == MercuryCheckStatus.Unknown) ? MercuryCheckStatus.Unknown
             : MercuryCheckStatus.Pass;
     }
 }

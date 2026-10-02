@@ -24,6 +24,8 @@ public static class MercuryLegalityAnalysis
     public static MercuryLegalityResult Analyze(MercuryPokemon pk, MercuryGameData? data, MercuryEncounterEvidence? encounterEvidence = null)
     {
         ArgumentNullException.ThrowIfNull(pk);
+        var distribution = MercuryDistributionCatalog.Match(pk);
+        var ordinarySourceRole = distribution is null ? MercuryCheckRole.Required : MercuryCheckRole.Diagnostic;
         bool hasRom = data is { HasSprites: true } && data.Source != "numeric"
             && data.RomVersion?.CanReadGameData == true;
         bool speciesData = hasRom && HasShape(data!.Species, MercuryRomLayout.SpeciesCount, z => z.Id);
@@ -35,7 +37,7 @@ public static class MercuryLegalityAnalysis
                 "内部species ID", "0为空记录，不是非法种类；不对空槽推断获取来源"),
             CheckRange("held-item.range", pk.HeldItem, MercuryRomLayout.ItemCount, itemData,
                 "携带道具表索引", "0表示未携带道具"),
-            CheckMethod1(pk),
+            CheckMethod1(pk) with { Role = MercuryCheckRole.Diagnostic },
         };
 
         MercurySpecies? species = speciesData && pk.Species > 0 && pk.Species < MercuryRomLayout.SpeciesCount
@@ -46,16 +48,16 @@ public static class MercuryLegalityAnalysis
             int move = pk.Moves[i];
             string code = $"move.{i + 1}";
             checks.Add(CheckRange($"{code}.range", move, MercuryRomLayout.MoveCount, moveData, "招式ID", "0为空招式"));
-            checks.Add(CheckLearning($"{code}.known-learning", move, species, levelUp, speciesData && moveData));
+            checks.Add(CheckLearning($"{code}.known-learning", move, species, levelUp, speciesData && moveData)
+                with { Role = ordinarySourceRole });
         }
 
-        var distribution = MercuryDistributionCatalog.Match(pk);
         var distributionCheck = distribution is null
             ? new MercuryLegalityCheck("distribution.reference", MercuryCheckStatus.Unknown,
-                "未匹配固定版本的4条公开配信原始内容；升级、改名或进化后内容可能不同，未匹配不代表非法；不猜测可变字段。")
+                "未匹配固定版本的4条公开配信原始内容；升级、改名或进化后内容可能不同，未匹配不代表非法；不猜测可变字段。", MercuryCheckRole.Diagnostic)
             : new MercuryLegalityCheck("distribution.reference", MercuryCheckStatus.Pass,
                 $"完整58字节内容匹配公开配信「{distribution.Label}」；来源：{distribution.SourceUrl}；commit={distribution.SourceCommit}。"
-                + "仅证明参考内容一致，不证明真实领取或身份，不是密码学认证，也不代表完整合法。");
+                + "仅证明参考内容一致，不证明真实领取或身份，不是密码学认证，也不代表完整合法。", MercuryCheckRole.Diagnostic);
         checks.Add(distributionCheck);
 
         string encounterReport;
@@ -71,7 +73,7 @@ public static class MercuryLegalityAnalysis
             fieldMatchStatus = match.FieldMatchStatus;
         }
         checks.Add(new MercuryLegalityCheck("encounter.record-fields", fieldMatchStatus,
-            "普通遭遇记录诊断（不含公开配信参考）：" + encounterReport));
+            "普通遭遇记录诊断（不含公开配信参考）：" + encounterReport, ordinarySourceRole));
         checks.Add(distribution is null
             ? new MercuryLegalityCheck("encounter.source", MercuryCheckStatus.Unknown, encounterReport)
             : new MercuryLegalityCheck("encounter.source", MercuryCheckStatus.Pass,

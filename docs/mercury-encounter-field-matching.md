@@ -6,11 +6,23 @@
 
 - `MercuryEncounterMatchResult.FieldMatchStatus`：至少一个普通候选满足 species、MetLocation/mapsec、MetLevel 闭区间时为 `Pass`，否则为 `Unknown`。原 `Status` 仍为 `Unknown`，保留完整来源语义。
 - 分析报告新增稳定 code `encounter.record-fields`。只有经过原有 ROM、版本及 SHA 门控的证据能令它通过；未导入、无有效 ROM、版本不支持、SHA 不符均为 `Unknown`。资料门控没有放宽。
-- 普通遭遇字段命中不提升 `encounter.source`：PID/IV、egg 状态、槽可选性以及其他生成约束未完整核对。公开配信完整内容匹配可单独通过限定来源项，范围见下节；总结果仍按所有检查汇总。
+- 普通遭遇字段命中不提升 `encounter.source`：PID/IV、egg 状态、槽可选性以及其他生成约束未完整核对。公开配信完整内容匹配可单独通过限定来源项，范围见下节；总结果按下述适用性角色汇总。
 - 候选或输入缺少地点、等级字段时不以零补齐；动态记录不能冒充普通候选。没有候选不判非法：事件、进化前物种、等级修正及动态来源的全集覆盖仍不足。
 - 匹配报告说明“通过所列字段约束匹配；未核对其他生成约束”。可能性检查不要求还原某只个体的真实捕获历史；未记录历史时刻本身不是永远保持完整来源未知的理由。
 
 等级仍保留原始 `int` 字段。只有查询等级和两端点都能无损表示为 `byte` 时才调用原生 `LevelRangeExtensions.IsLevelWithinRange`；否则继续原有整数闭区间比较，不截断、不回绕、不引入零售等级上限。这里通过的是所列字段比较，不是对原始研究记录所有字段有效性的额外认证。
+
+## 适用检查与辅助诊断
+
+`MercuryLegalityCheck` 的第 4 个可选参数为 `Role`，默认 `MercuryCheckRole.Required`，既有三参数调用仍代表适用检查。没有增加忽略未知的一般开关。
+
+- 任何检查出现 `Invalid`，包括 `Diagnostic`，总状态均优先为 `Invalid`，不会隐藏真实错误。
+- 没有 `Invalid` 时，仅 `Required` 的 `Unknown` 阻止通过；零个 `Required` 仍为 `Unknown`。全部 `Required` 为 `Pass` 才汇总为 `Pass`，含义是“已覆盖的适用检查通过；不代表完整游戏合法性”。
+- 所有 `*.range` 与 `encounter.source` 恒为 `Required`。`rng.method1` 与 `distribution.reference` 恒为 `Diagnostic`；配信的限定来源结论已由必需的 `encounter.source` 表达。
+- 仅当完整 58 字节精确命中固定公开配信时，`encounter.record-fields` 与四项 `move.*.known-learning` 为 `Diagnostic`：已发布原始内容包含招式，不额外强求同时具有普通遭遇或普通学习来源。未精确命中时它们恢复为 `Required`，来源判断本身不变。
+- 无 ROM 或 numeric 资料仍令范围检查为 `Unknown`；ROM、版本、SHA 与表形状门控均不放宽。普通遭遇无完整来源证据仍为 `Unknown`。未匹配配信不能据此判非法，也不能据此提升来源。
+
+`Show` 与 `Evaluate` 均标注 `Required 适用检查` / `Diagnostic 辅助诊断（不单独决定总结果）`；逐项 `Unknown` 和证据继续可见。`Show` 保留全部检查，`Evaluate` 保留原有非 `Pass` 报告范围。没有运行零售分析或提供完整合法绿勾；批量暂停入口不变。
 
 ## 基础 Method1 数值相关性
 
@@ -24,7 +36,7 @@
 
 匹配直接比较 `MercuryPokemon.ToBoxBytes()` 的**完整 58 字节**，不重写现有盒/队伍归一化，不猜可变字段。完全相同时，`distribution.reference` 为 `Pass`，`encounter.source` 可为 `Pass`，其含义仅是“公开配信原始内容来源匹配”。这不证明真实领取或持有人身份，不是密码学认证，也不是完整游戏合法性。无需已加载野生 ROM/遭遇表即可比较公开参考内容。
 
-无匹配时两项不因此判非法：`distribution.reference` 为 `Unknown`；升级、改名、进化或任意字节变化均可能不再与原始发布内容相同。本增量不追踪这些变体。普通 `encounter.record-fields`、范围、学习表及 `rng.method1` 继续独立报告；配信样例没有 Method1 匹配也不判非法。汇总规则不变：其他已覆盖字段的 `Invalid` 仍优先；存在任何 `Unknown` 仍汇总为未知，不强制总结果通过。
+无匹配时两项不因此判非法：`distribution.reference` 为 `Unknown`；升级、改名、进化或任意字节变化均可能不再与原始发布内容相同。本增量不追踪这些变体。普通 `encounter.record-fields`、范围、学习表及 `rng.method1` 继续独立报告；配信样例没有 Method1 匹配也不判非法。汇总按上述角色规则：任何 `Invalid` 仍优先，适用检查中的 `Unknown` 仍阻止通过；辅助诊断的 `Unknown` 保留在报告中但不压低总状态。四条精确配信在有效 ROM 资料下全部范围通过时，可得到限定覆盖范围的 `Pass`，不表示实际领取、身份认证或完整游戏合法。
 
 已读的公开 HOME 仅检查 PMH1 前缀、58 字节长度、非零物种、数据库覆盖与盒容量，随后保留 raw 字节；它不是宝可梦生成器或完整合法性引擎。目录只收录上述四个固定参考，不把“HOME 能接受任意格式有效记录”等同“所有记录都合法”，也不新增 PMH1 导入 UI、生成器或完整遭遇模板。
 
@@ -49,3 +61,14 @@
 `MercuryMethod1Tests` 无需 ROM：以原生 `ClassicEraRNG` 的固定 seed 向量和原生 Method1 匹配器作预言机，覆盖正反例、六 IV 顺序、蛋/能力高位排除、输入字节不变、空槽、缺资料及完整来源不被提升。
 
 `MercuryDistributionReferenceTests` 固定使用四条公开 payload，不访问网络或 ROM，不写用户存档。覆盖 58 字节解析与物种/PID/OT/经验/性格/球/招式/6V/梦特等元数据、四条 exact-match、PID/IV/OT 单字节变化及经验变化后的 `Unknown`、现有 box/party 归一化、无 ROM 时来源限定匹配但汇总未知、输入不变与参考字节不对外暴露。固定记录的物种/招式/持有物均符合现有水银索引形状；未因样例放宽任何范围限制。
+
+`MercuryLegalityApplicabilityTests` 覆盖三参数默认角色、辅助未知不压低适用通过、任意角色的无效优先、零适用检查未知、适用未知仍阻止通过、四条配信无 ROM/numeric 时范围未知、真实 ROM 下四条精确配信的覆盖范围通过、修改 PID/OT/IV 字节后来源恢复未知、普通无证据仍未知，以及分析不修改输入字节。复用现有 `MercuryRomFact`：未配置 `MERCURY_TEST_ROM` 明确跳过，显式错路径必须失败。
+
+本次限定验证（固定 SDK `C:/Users/Moeblack/AppData/Local/PKHeX-Mercury/dotnet/dotnet.exe`，均 `-m:1`）：
+
+- 仅运行上述聚合类与 `MercuryDistributionReferenceTests`、`MercuryEncounterFieldMatchTests`、`MercuryMethod1Tests` 四类。显式 `MERCURY_TEST_ROM=C:/Users/Moeblack/Downloads/宝可梦水银/宝可梦水银FC~致150年后的你 Version 1.1 (1).gba`：**86 pass / 0 fail / 0 skip**。
+- 同一四类、不配置 ROM：**81 pass / 0 fail / 5 skip**，其中新增类 3 个真实 ROM 用例及既有遭遇类 2 个明确跳过。
+- 单独对四条配信真实 ROM 用例提供不存在的路径：**0 pass / 1 fail / 0 skip**，预期 `FileNotFoundException` 位于 `MercuryLegalityApplicabilityTests.LoadV11` 的 `File.ReadAllBytes`，没有把错路径当成跳过。
+- 限定 `PKHeX.WinForms/PKHeX.WinForms.csproj` build 成功，**0 warning / 0 error**。未运行全库测试、格式化器或额外项目级验证，未写用户存档/profile，未纳入 ROM。
+
+日志与 TRX 位于工作树本地 `artifacts/issue-06/applicability/`（不入 Git）：`targeted-rom`、`targeted-no-rom`、`explicit-bad-path` 的 `.log/.trx` 以及 `winforms-build.log`。基线为 `5d449c152e44141ae5d4a4c61782d3664defb97a`，工作分支为 `fix/mercury-issue-06-check-roles`。
