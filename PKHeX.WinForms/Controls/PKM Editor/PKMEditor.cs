@@ -488,7 +488,7 @@ public sealed partial class PKMEditor : UserControl, IMainEditor
 
     private void SetForms()
     {
-        if (Entity is MercuryPKM mercury)
+        if (Entity is MercuryPKM mercury && mercury.Species != (int)Species.Unown)
         {
             UC_Gender.AllowClick = mercury.PersonalInfo.IsDualGender;
             CB_Form.Enabled = CB_Form.Visible = Label_Form.Visible = false;
@@ -1130,8 +1130,15 @@ public sealed partial class PKMEditor : UserControl, IMainEditor
         if (FieldsLoaded && sender == CB_Form)
         {
             Entity.Form = (byte)CB_Form.SelectedIndex;
-            uint exp = Experience.GetEXP(Entity.CurrentLevel, Entity.PersonalInfo.EXPGrowth);
+            uint exp = Entity is MercuryPKM mercuryForm
+                ? mercuryForm.GameData.GetExperience(Entity.Species, Entity.CurrentLevel)
+                : Experience.GetEXP(Entity.CurrentLevel, Entity.PersonalInfo.EXPGrowth);
             TB_EXP.Text = exp.ToString();
+            if (Entity is MercuryPKM { Species: (ushort)Species.Unown })
+            {
+                TB_PID.Text = Entity.PID.ToString("X8");
+                Update_ID(TB_PID, e);
+            }
         }
 
         UpdateStats();
@@ -1799,17 +1806,31 @@ public sealed partial class PKMEditor : UserControl, IMainEditor
         TB_EC.Text = (Entity.EncryptionConstant = Util.GetHexValue(TB_EC.Text)).ToString("X8");
 
         UpdateIsShiny();
-        UpdateSprite();
+        bool syncMercuryForm = Entity is MercuryPKM { Species: (ushort)Species.Unown };
+        if (!syncMercuryForm)
+            UpdateSprite();
         Stats.UpdateCharacteristic();   // If the EC is changed, EC%6 (Characteristic) might be changed.
         if (Entity.Format <= 4)
         {
+            bool fieldsLoaded = FieldsLoaded;
             FieldsLoaded = false;
-            Entity.PID = Util.GetHexValue(TB_PID.Text);
-            CB_Nature.SelectedValue = (int)Entity.Nature;
-            UC_Gender.Gender = Entity.Gender;
-            UpdateNatureModification(CB_Nature, Entity.Nature);
-            FieldsLoaded = true;
+            try
+            {
+                Entity.PID = Util.GetHexValue(TB_PID.Text);
+                CB_Nature.SelectedValue = (int)Entity.Nature;
+                UC_Gender.Gender = Entity.Gender;
+                if (syncMercuryForm && CB_Form.Items.Count > Entity.Form)
+                    CB_Form.SelectedIndex = Entity.Form;
+                UpdateNatureModification(CB_Nature, Entity.Nature);
+            }
+            finally
+            {
+                FieldsLoaded = fieldsLoaded;
+            }
         }
+        // The host preview calls PreparePKM: do not let it save stale nature/form controls over the new PID.
+        if (syncMercuryForm)
+            UpdateSprite();
     }
 
     private void Update_ID64(object sender, EventArgs e)

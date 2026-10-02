@@ -101,8 +101,8 @@ public partial class PKMEditor
     /// </summary>
     private void ApplyMercuryInterface()
     {
-        // Forms are encoded as distinct internal species ids; there is no separate form field.
-        CB_Form.Enabled = CB_Form.Visible = Label_Form.Visible = false;
+        // Most forms use internal species IDs; Unown retains the PID-derived form selector.
+        CB_Form.Enabled = CB_Form.Visible = Label_Form.Visible = Entity.Species == (int)Species.Unown;
         FA_Form.Visible = FA_Form.TabStop = false;
         L_FormArgument.Visible = false;
 
