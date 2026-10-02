@@ -1,78 +1,58 @@
+using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Windows.Forms;
-using PKHeX.Core;
 using PKHeX.Mercury.Core;
 
 namespace PKHeX.WinForms;
 
-/// <summary>
-/// Structural validation for Mercury entities using the loaded ROM's facts.
-/// <para>
-/// Mercury internal ids must never be fed to the retail encounter/learn tables, and HaX must not be used to
-/// suppress failures. Only facts that are actually proven by the extracted ROM data are checked here;
-/// capture/obtainability is not yet proven, so a structurally clean entity is reported as <b>unverified</b>
-/// rather than green-legitimate.
-/// </para>
-/// </summary>
+/// <summary>Presentation of Mercury-only evidence-scoped checks; never a retail legality verdict.</summary>
 internal static class MercuryLegality
 {
-    /// <summary>Returns human-readable structural issues; an empty list means "structurally consistent, obtainability unverified".</summary>
+    /// <summary>Compatibility report: includes unknown checks as well as invalid fields.</summary>
     public static List<string> Evaluate(MercuryPKM pk)
+        => MercuryLegalityAnalysis.Analyze(pk).Checks
+            .Where(z => z.Status != MercuryCheckStatus.Pass)
+            .Select(z => $"[{z.Code}] {z.Status}: {z.Evidence}").ToList();
+
+    public static void Show(IWin32Window owner, MercuryPKM pk)
     {
-        var issues = new List<string>();
-        var data = pk.GameData;
-
-        int species = pk.Species;
-        if (species == 0)
-            issues.Add("未选择种类。");
-        else if ((uint)species >= (uint)data.Species.Count || !data.GetSpecies(species).HasData)
-            issues.Add($"种类 {species} 超出 ROM 实际数据范围。");
-
-        if (!IsMoveInRange(pk, pk.Move1) || !IsMoveInRange(pk, pk.Move2) || !IsMoveInRange(pk, pk.Move3) || !IsMoveInRange(pk, pk.Move4))
-            issues.Add("存在超出 ROM 招式范围的招式。");
-
-        CheckRange(issues, pk.IV_HP, 0, 31, "HP 个体值");
-        CheckRange(issues, pk.IV_ATK, 0, 31, "攻击个体值");
-        CheckRange(issues, pk.IV_DEF, 0, 31, "防御个体值");
-        CheckRange(issues, pk.IV_SPE, 0, 31, "速度个体值");
-        CheckRange(issues, pk.IV_SPA, 0, 31, "特攻个体值");
-        CheckRange(issues, pk.IV_SPD, 0, 31, "特防个体值");
-
-        CheckRange(issues, pk.EV_HP, 0, 255, "HP 努力值");
-        CheckRange(issues, pk.EV_ATK, 0, 255, "攻击努力值");
-        CheckRange(issues, pk.EV_DEF, 0, 255, "防御努力值");
-        CheckRange(issues, pk.EV_SPE, 0, 255, "速度努力值");
-        CheckRange(issues, pk.EV_SPA, 0, 255, "特攻努力值");
-        CheckRange(issues, pk.EV_SPD, 0, 255, "特防努力值");
-        if (pk.EVTotal > 510)
-            issues.Add($"努力值总计 {pk.EVTotal} 超过 510。");
-
-        if (pk.Nickname.Length > pk.MaxStringLengthNickname)
-            issues.Add($"昵称超过 {pk.MaxStringLengthNickname} 字符上限。");
-
-        return issues;
+        var result = MercuryLegalityAnalysis.Analyze(pk);
+        string report = string.Join(Environment.NewLine + Environment.NewLine,
+            result.Checks.Select(z => $"[{z.Code}] {StatusText(z.Status)}{Environment.NewLine}{z.Evidence}"));
+        TaskDialog.ShowDialog(owner, new TaskDialogPage
+        {
+            Caption = "Mercury",
+            Heading = $"水银已覆盖检查：{StatusText(result.Status)}",
+            Text = result.Summary + "\n未运行原版LegalityAnalysis；不提供完整合法绿勾。",
+            Expander = new TaskDialogExpander
+            {
+                CollapsedButtonText = "逐项证据与缺口",
+                ExpandedButtonText = "收起逐项报告",
+                Expanded = true,
+                Text = report,
+            },
+            Buttons = [TaskDialogButton.OK],
+            DefaultButton = TaskDialogButton.OK,
+            AllowCancel = true,
+            SizeToContent = true,
+        });
     }
 
-    /// <summary>True when the move id fits inside the ROM's proven move range.</summary>
-    public static bool IsMoveInRange(MercuryPKM pk, ushort move)
-        => move == 0 || (uint)move < (uint)pk.GameData.Moves.Count;
-
-    private static void CheckRange(List<string> issues, int value, int min, int max, string label)
+    private static string StatusText(MercuryCheckStatus status) => status switch
     {
-        if (value < min || value > max)
-            issues.Add($"{label} {value} 超出 {min}..{max}。");
-    }
-
-    /// <summary>Manual checks report the pause explicitly, without evaluating the entity.</summary>
-    public static void Show(IWin32Window owner, MercuryPKM pk) => ShowPaused(owner);
+        MercuryCheckStatus.Invalid => "Invalid（无效）",
+        MercuryCheckStatus.Pass => "Pass（已检查字段通过）",
+        _ => "Unknown（未知）",
+    };
 
     public static void ShowPaused(IWin32Window owner)
     {
         TaskDialog.ShowDialog(owner, new TaskDialogPage
         {
             Caption = "Mercury",
-            Heading = "水银合法性检查已暂停",
-            Text = "当前未执行宝可梦合法性检查。未检查不代表合法；原版存档的检查不受影响。",
+            Heading = "水银批量来源检查：Unknown（未知）",
+            Text = "尚未实现批量来源检查，未知不代表合法。请在单只宝可梦的合法性报告入口查看已覆盖字段、逐项证据和缺口。原版存档的检查不受影响。",
             Buttons = [TaskDialogButton.OK],
             DefaultButton = TaskDialogButton.OK,
             AllowCancel = true,
