@@ -46,8 +46,11 @@
 | 32 | fix/mercury-issue-06-method1 | 0721bb7da5ea6d7e68c633ada9f8e4ae783fb383 | 576e586d6 | Reuse native Method1 correlation for Mercury diagnostics |
 | 33 | fix/mercury-issue-02-full-catalog | cb62485423450e35465acf8ea92d16e64ae7201f | 3862b0e34 | Classify all V1_1 Mercury transitions through shared consumers |
 | 34 | fix/mercury-issue-02-version-gate | 87be3710a16488be692cd5fb1d95f1797441e95e | 58400cfb5 | Gate Mercury transition metadata on the actual version descriptor |
+| 35 | fix/mercury-issue-06-distribution | f6cb470fdca766f791dfdd35a04fa5edd9ae9a6b | 27323ed0a | Match fixed Mercury public distribution reference records |
 
-集成分支 pick HEAD（本次记录时）：`58400cfb5`。三十四次 cherry-pick 均已落地：冲突发生于第 7、15、23、26 次并按规则解决；其余无冲突。Method1（第 32 次）保留。
+集成分支 pick HEAD（本次记录时）：`27323ed0a`。三十五次 cherry-pick 均已落地：冲突发生于第 7、15、23、26 次并按规则解决；其余无冲突。
+
+第 35 次增量（Issue 6 仍部分，不称完整合法性）：4 条固定公开配信按内容来源 `exact-match`；BCL 解码、私有 bytes、`ToBoxBytes` exact；无 match 为 `Unknown`。仅内容来源匹配为 `Pass`，不绕过其它 `Invalid`。HOME 侧只做 PMH1/base64/58B/物种库/容量检查，无 Method1/招式来源/遭遇/EV/球 OT 蛋组合验证；静态脚本 gift 131/25/134 明确排除、不再作完成阻塞（证据保留）。验证：solution 构建 0 警告 0 错误（约 13.7 秒，日志 `artifacts/integration-build-distribution.log`）；`MercuryDistributionReferenceTests` **21/21**（无 ROM）、`MercuryEncounterFieldMatchTests` **26/26**、`MercuryMethod1Tests` **25/25**，均 0 跳过（日志 `artifacts/integration-mercury-distribution-tests.log`、`integration-mercury-fieldmatch-tests.log`、`integration-mercury-method1-tests.log`）。未跑全库、未写用户资料。
 
 第 33/34 次增量（Issue 2 **已完成**）：V1.1 method 253/254 全部 233 记录/226 源已分类，含通用 7 分支与真实 slot 顺序；V1.0 与 unknown 不套用 1.1 转换表。PID/性别/运行态分类保留，不新增永久 Form setter。版本选择由 `MercuryFormCatalog`（85–92）与生产 tooltip 传 `pk.GameData.RomVersion` 驱动。范围说明（非全部未知）：1.0 未提供转换目录、不宣称完整战斗模拟；外层门控/其它生命周期未全解释不构成已知缺失的存档字段。验证：solution 构建 0 警告 0 错误（约 7.55 秒，日志 `artifacts/integration-build-transitions-full.log`）；`MercurySpeciesTransitionTests` **54/54 通过、0 跳过**（日志 `artifacts/integration-mercury-species-transition-tests.log`）。未跑全库、未重跑无关包安装。
 
@@ -135,6 +138,7 @@ Issue 11 本次只完成帧/页 API：`MercurySpriteSelection(FrameIndex, Palett
 - 集成 Issue 2 目录 16 关系 + Issue 11 PID spots 提交后构建：**已成功生成，0 警告，0 错误**（约 9.33 秒）。日志 `artifacts/integration-build-issue2dir-issue11pid.log`。
 - 集成 Method1 诊断提交后构建：**已成功生成，0 警告，0 错误**（约 7.55 秒）。日志 `artifacts/integration-build-method1.log`。
 - 集成全量形态 + 版本 gate 提交后构建：**已成功生成，0 警告，0 错误**（约 7.55 秒）。日志 `artifacts/integration-build-transitions-full.log`。
+- 集成公开配信 exact-match 提交后构建：**已成功生成，0 警告，0 错误**（约 13.7 秒）。日志 `artifacts/integration-build-distribution.log`。
 
 ## Issue 3（729 号道具图像）：阻塞结论
 
