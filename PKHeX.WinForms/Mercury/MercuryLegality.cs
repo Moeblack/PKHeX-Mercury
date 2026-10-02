@@ -82,8 +82,8 @@ internal static class MercuryLegality
         TaskDialog.ShowDialog(owner, new TaskDialogPage
         {
             Caption = "Mercury",
-            Heading = "水银批量来源检查：Unknown（未知）",
-            Text = "尚未实现批量来源检查，未知不代表合法。请在单只宝可梦的合法性报告入口查看已覆盖字段、逐项证据和缺口。原版存档的检查不受影响。",
+            Heading = "此存档不支持批量来源检查",
+            Text = "该存档类型没有可用的批量来源检查，未知不代表合法。请在单只宝可梦的合法性报告入口查看已覆盖字段、逐项证据和缺口。水银存档使用独立的水银批量入口；原版受支持的存档走零售批量检查。",
             Buttons = [TaskDialogButton.OK],
             DefaultButton = TaskDialogButton.OK,
             AllowCancel = true,
