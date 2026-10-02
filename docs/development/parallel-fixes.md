@@ -19,8 +19,28 @@
 | 5 | fix/mercury-issue-02-11-forms | 72c61eaff | 4d1ce1cc5 | Expose explicit Mercury sprite frame and palette-page selection |
 | 6 | fix/mercury-issue-07-identifiers | 772f737113e806b20c64751ace267c7e9215e44d（parent ff7d6457） | 251bfcc1e | Fix Mercury numeric-only strings factory empty ability slot |
 | 7 | mercury（Issue 1 核心单独提交，UI 未完成） | 3cb8d17d06bf688638d8d669a22b8c08df2a9d9f | 516bf4ee8 | Fix Mercury Unown forms and PID constraint preservation |
+| 8 | fix/mercury-issue-08-type | 203c63ee87e73cca6e1e35d84af03a5deae7fcdd | ab442dd1a | Add Mercury type override field and native editor control |
+| 9 | fix/mercury-issue-08-type | 0cfb69c40122b7a2ed4b9cbae06afcb38f8991ea | 3f9044f12 | Preserve unknown boxed Mercury type bits through the PKM bridge |
 
-集成分支 HEAD（本次记录时）：`516bf4ee8`。七次 cherry-pick 均已落地（第 7 次与 72c61eaff 交叉，冲突按 Main 单逐块解决，未选整文件 ours/theirs），未重写其它代码。
+集成分支 HEAD（本次记录时）：`3f9044f12`。九次 cherry-pick 均已落地（第 7 次冲突按 Main 单逐块解决；第 8、9 次自动合并），未选整文件 ours/theirs，未重写其它代码。
+
+Issue 8 两次 pick 只涉及另一桥接/`TypeOverride` 与 UI 挂钩（新增 `EditMercuryTypes.cs`），保留了已合 Issue 1 的 `SetPersonality` 新参数、Unown form 与 PID 约束机制。
+
+## 会话分工（一对一，完成项保持完成状态，不重复修改）
+
+| Issue | 负责会话 |
+|---|---|
+| 1 形态核心 | core |
+| 2 形态机制 | mechanisms |
+| 3 资源 | resources |
+| 4 文档兼集成 | docs |
+| 5 资料部署 | provisioning |
+| 6 合法性 | legality |
+| 7 标识符 | identifiers |
+| 8 类型覆盖 | type |
+| 9 版本 | versions |
+| 10 数据契约 | data-contracts |
+| 11 形态 | forms |
 
 第 7 次冲突解决要点：`MercurySpriteLoader` 保留新 selection/metadata 重载与 XML，旧重载改为转发并接受 `paletteIndex`；调色板读取保留 `paletteResourceIndex`（范围校验已存在）；`MercuryGameData.GetSpriteRgba` 用 `resolvedPaletteIndex = paletteIndex ?? (species == 201 ? 201 : index)`，Unown 默认强制调色板资源 201、调用者显式 paletteIndex 优先。自动合入的 `GetSpriteIndex` Unown 201 映射与 `MercuryPokemon`/`MercuryPKM` 的 PID/约束代码保留。Issue 1 的 UI 尚未完成，不标为完成。
 
@@ -42,6 +62,7 @@ Issue 11 本次只完成帧/页 API：`MercurySpriteSelection(FrameIndex, Palett
 - 结果：**已成功生成，0 警告，0 错误**（用时约 8.3 秒），产出 `PKHeX.dll`、`PKHeX.Mercury.Core.dll` 等。
 - 本次只做一次构建核对已合并代码，未运行额外测试或应用。
 - 集成 Issue 1 核心提交（Unown/PID，含冲突解决）后再次构建：**已成功生成，0 警告，0 错误**（约 7.95 秒）。构建日志保存在本机 `artifacts/integration-build-core.log`。
+- 集成 Issue 8 两次提交后构建：**已成功生成，0 警告，0 错误**（约 10.72 秒）。构建日志保存在本机 `artifacts/integration-build-issue8.log`。
 
 ## 事实补记（Issue 5/9，未完成）
 
