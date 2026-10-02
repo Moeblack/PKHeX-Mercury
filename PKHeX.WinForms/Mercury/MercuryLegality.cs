@@ -11,13 +11,13 @@ internal static class MercuryLegality
 {
     /// <summary>Compatibility report: includes unknown checks as well as invalid fields.</summary>
     public static List<string> Evaluate(MercuryPKM pk)
-        => MercuryLegalityAnalysis.Analyze(pk).Checks
+        => MercuryLegalityAnalysis.Analyze(pk, MercuryEncounterContext.TryGet(pk.GameData)).Checks
             .Where(z => z.Status != MercuryCheckStatus.Pass)
             .Select(z => $"[{z.Code}] {z.Status}: {z.Evidence}").ToList();
 
     public static void Show(IWin32Window owner, MercuryPKM pk)
     {
-        var result = MercuryLegalityAnalysis.Analyze(pk);
+        var result = MercuryLegalityAnalysis.Analyze(pk, MercuryEncounterContext.TryGet(pk.GameData));
         string report = string.Join(Environment.NewLine + Environment.NewLine,
             result.Checks.Select(z => $"[{z.Code}] {StatusText(z.Status)}{Environment.NewLine}{z.Evidence}"));
         TaskDialog.ShowDialog(owner, new TaskDialogPage

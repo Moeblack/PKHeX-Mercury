@@ -96,6 +96,7 @@ internal static class MercuryIntegration
 
     private static void SetData(MercuryGameData data)
     {
+        MercuryEncounterContext.Clear();
         _data = data;
         MercuryPKM.DefaultGameData = data; // required by native blank-entity creation paths
 
@@ -123,6 +124,14 @@ internal static class MercuryIntegration
         AddItem(root, "Menu_MercuryImportCharmap", "Import name charmap (JSON)...", (s, _) => ImportCharmap(Owner(s)));
         AddItem(root, "Menu_MercuryDownloadCharmap", "Download public HOME charmap...", async (s, _) => await DownloadCharmapAsync(Owner(s)));
         AddItem(root, "Menu_MercuryImportResearch", "Import research directory...", (s, _) => ImportResearch(Owner(s)));
+        var encounterEvidence = new ToolStripMenuItem
+        {
+            Name = "Menu_MercuryImportEncounterEvidence",
+            Text = L("EncounterEvidence.Menu", "Import encounter evidence (JSON)..."),
+        };
+        encounterEvidence.Click += (s, _) => ImportEncounterEvidence(Owner(s));
+        root.DropDownItems.Add(encounterEvidence);
+        root.DropDownOpening += (_, _) => encounterEvidence.Text = L("EncounterEvidence.Menu", "Import encounter evidence (JSON)...");
         AddItem(root, "Menu_MercuryLoadProfile", "Load existing profile folder...", (s, _) => LoadProfileFolder(Owner(s)));
         tools.DropDownItems.Add(root);
     }
@@ -140,6 +149,53 @@ internal static class MercuryIntegration
     /// <summary>Localized text through the native translation mechanism (falls back to the given default).</summary>
     private static string L(string key, string fallback)
         => WinFormsTranslator.TranslateText($"Mercury.{key}", fallback, Main.CurrentLanguage);
+
+    /// <summary>Explicit, session-only import; cancellation or failure never replaces existing evidence.</summary>
+    public static void ImportEncounterEvidence(IWin32Window? owner)
+    {
+        var data = _data;
+        if (!MercuryEncounterContext.CanImport(data))
+        {
+            WinFormsUtil.Error(L("EncounterEvidence.NeedData", "Configure the supported Mercury ROM/profile with a verified ROM cache before importing encounter evidence."));
+            return;
+        }
+
+        using var ofd = new OpenFileDialog
+        {
+            Filter = L("EncounterEvidence.Filter", "Encounter evidence (*.json)|*.json|All files (*.*)|*.*"),
+            Title = L("EncounterEvidence.SelectFile", "Import Mercury encounter evidence JSON"),
+        };
+        if (ofd.ShowDialog(owner) != DialogResult.OK)
+            return;
+        if (!ReferenceEquals(data, _data))
+        {
+            WinFormsUtil.Error(L("EncounterEvidence.DataChanged", "Mercury data changed while choosing the file. Import again for the current data."));
+            return;
+        }
+
+        try
+        {
+            var evidence = MercuryEncounterContext.Import(data!, ofd.FileName);
+            if (evidence is null)
+                return;
+            int ordinary = 0;
+            int dynamic = 0;
+            foreach (var record in evidence.Records)
+            {
+                if (record.Source == MercuryEncounterSource.OrdinaryTable)
+                    ordinary++;
+                else
+                    dynamic++;
+            }
+            WinFormsUtil.Alert(L("EncounterEvidence.Imported", "Encounter evidence imported for this session."),
+                string.Format(L("EncounterEvidence.Counts", "Ordinary slots: {0}; dynamic records: {1}."), ordinary, dynamic),
+                L("EncounterEvidence.Unknown", "Source conditions remain undetermined. A matching SHA declaration is not full ROM-table verification; source legality remains Unknown."));
+        }
+        catch (Exception e)
+        {
+            WinFormsUtil.Error(L("EncounterEvidence.Failed", "Encounter evidence import failed. Previously imported evidence has not been replaced."), e);
+        }
+    }
 
     /// <summary>
     /// Prompts for the exact Mercury ROM and stores a verified local profile.
