@@ -48,8 +48,13 @@
 | 34 | fix/mercury-issue-02-version-gate | 87be3710a16488be692cd5fb1d95f1797441e95e | 58400cfb5 | Gate Mercury transition metadata on the actual version descriptor |
 | 35 | fix/mercury-issue-06-distribution | f6cb470fdca766f791dfdd35a04fa5edd9ae9a6b | 27323ed0a | Match fixed Mercury public distribution reference records |
 | 36 | fix/mercury-issue-06-check-roles | 50c724cff8fba2ccc4e4479f6754cadb13aa03fe | a35de94cc | fix(mercury): distinguish applicable checks from diagnostics |
+| 37 | fix/mercury-issue-06-bulk-checks | b1bd105a9a07e45f37391da6a4414a119c478d9a | 9632a04ba | feat(mercury): check current stored entities with scoped bulk reports |
 
-集成分支 pick HEAD（本次记录时）：`a35de94cc`。三十六次 cherry-pick 均已落地：冲突发生于第 7、15、23、26 次并按规则解决；其余无冲突。
+集成分支 pick HEAD（本次记录时）：`9632a04ba`（另含表述清理提交，见下）。三十七次 cherry-pick 均已落地：冲突发生于第 7、15、23、26 次并按规则解决；其余无冲突。
+
+第 37 次增量（Issue 6）：水银批量入口**不再暂停**。复用 `SlotInfoLoader` 当前缓冲（`AddFromSaveFile` 读当前 native `BoxBuffer`/活动 `PartyBuffer`），仅跳过 species 0、保存非零异常，无 setter/Export；原生批量入口对水银调用 `ShowBulk`，零售路径不变。范围统计/报告已产出；**仅 Yes 才复制到剪贴板**；**未实测实际点击与剪贴板交互**（只验证 Core 逐槽格式化输出与 WinForms 编译）。表述清理：`MercuryLegality.ShowPaused` 的原“水银批量来源检查尚未实现”改为“此存档不支持批量来源检查”，保留为**非水银 fallback**、不再当作水银状态；历史日志不改。验证：solution 构建 0 警告 0 错误（约 6.82 秒，日志 `artifacts/integration-build-bulk.log`）；5 类过滤合计 **95/95 通过、0 跳过**（日志 `artifacts/integration-mercury-bulk-tests.log`）。未跑全库/installer、未碰用户数据。
+
+当轮到齐提交：本轮批准的 `b1bd105a` 已集成（→ 9632a04ba）；无其它待集成（33–36 均已在链上）。
 
 第 36 次增量（Issue 6 仍部分，不称完整游戏合法）：检查角色区分——任何 `Invalid` 优先；`Required` 的 `Unknown` 阻止通过；0 个 Required Unknown 才可通过；`rng`/`distribution` 参考恒为 `Diagnostic`，exact 配信时 ordinary fields/learning 为 `Diagnostic`；`range`/`source` 仍为 `Required`。无 ROM 仍 Unknown；真实 ROM 下 4 条 exact 配信全部适用检查 Pass。不适用辅助诊断不再算作来源未知原因；静态 gift 排除保持。验证：solution 构建 0 警告 0 错误（约 8.65 秒，日志 `artifacts/integration-build-check-roles.log`）；4 类过滤 `MercuryLegalityApplicabilityTests|MercuryDistributionReferenceTests|MercuryEncounterFieldMatchTests|MercuryMethod1Tests` 合计 **86/86 通过、0 跳过**（日志 `artifacts/integration-mercury-check-roles-tests.log`）。未跑全库/installer。
 
