@@ -26,6 +26,7 @@ public sealed partial class PKMEditor : UserControl, IMainEditor
     public PKMEditor()
     {
         InitializeComponent();
+        InitializeMercuryIdentifierTips();
 
         // Commonly reused Control arrays
         Moves = [MC_Move1, MC_Move2, MC_Move3, MC_Move4];
@@ -273,6 +274,7 @@ public sealed partial class PKMEditor : UserControl, IMainEditor
         SetPKMFormatExtraBytes(pk);
         (GetFieldsfromPKM, GetPKMfromFields) = GetLoadSet(pk);
         ConfigureMercuryTypes(pk);
+        SetMercuryIdentifierTipFormat(pk);
         var mercuryMoveData = pk is MercuryPKM mercury ? mercury.GameData : null;
         foreach (var move in Moves)
         {
@@ -360,6 +362,7 @@ public sealed partial class PKMEditor : UserControl, IMainEditor
                 Stats.LoadPartyStats(pk);
         }
         FieldsLoaded = true;
+        RefreshMercuryIdentifierTips();
 
         UpdateAffixed(pk);
         SetMarkings();

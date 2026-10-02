@@ -416,10 +416,10 @@ public sealed class MercuryGameData
 
     /// <summary>Region-section names used by GetMapName at 0x080C4D78, including explicit unknown slots.</summary>
     public string[] GetLocationNames(string language)
-        => MercuryIdentifierCatalog.GetNames(GetLocationIdentifiers(), language);
+        => MercuryIdentifierCatalog.GetNames(GetLocationIdentifiers(language), language);
 
-    public MercuryIdentifier[] GetLocationIdentifiers()
-        => MercuryIdentifierCatalog.CreateLocations(_rom, _text);
+    public MercuryIdentifier[] GetLocationIdentifiers(string language = "zh")
+        => MercuryIdentifierCatalog.CreateLocations(_rom, _text, language);
 
     public byte[]? GetBallSpriteRgba(byte ball, out int width, out int height)
     {
@@ -434,10 +434,10 @@ public sealed class MercuryGameData
     /// Unmapped bytes retain their numeric identity, not a retail ball interpretation.
     /// </summary>
     public string[] GetBallNames(string language)
-        => MercuryIdentifierCatalog.GetNames(GetBallIdentifiers(), language);
+        => MercuryIdentifierCatalog.GetNames(GetBallIdentifiers(language), language);
 
-    public MercuryIdentifier[] GetBallIdentifiers()
-        => MercuryIdentifierCatalog.CreateBalls(_items);
+    public MercuryIdentifier[] GetBallIdentifiers(string language = "zh")
+        => MercuryIdentifierCatalog.CreateBalls(_items, language);
 
     public string[] GetOriginNames(string language)
         => MercuryIdentifierCatalog.GetNames(MercuryIdentifierCatalog.CreateOrigins(language), language);
