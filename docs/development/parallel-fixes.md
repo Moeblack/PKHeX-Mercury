@@ -46,7 +46,7 @@
 
 集成分支 pick HEAD（本次记录时）：`0e5b48cef`。三十一次 cherry-pick 均已落地：冲突发生于第 7、15、23、26 次并按规则解决；其余无冲突。
 
-Issue 2（暂不结项）：已证目录 16 条关系并修正临时恢复写入，未知分类保留。Issue 11 已完成（按“编辑器正面图资源/当前实体预览”标准）：完整帧/页、338 null/false/true、PID 0/1/3/4 实体路径均覆盖；明确不复刻战斗动画、不提供背面查看器、未知动画选择不瞎自动配对（非新增任务）。`TryGetFront` 原始语义保留。
+Issue 2（暂不结项）：已证目录 16 条关系（**是已证目录，不是全部转换清单**）并修正临时恢复写入，未知分类保留。Issue 11 已完成（按“编辑器正面图资源/当前实体预览”标准）：完整帧/页、338 null/false/true、内部资源索引 0x0134 的 PID 斑点后处理（ROM/资料包实体路径）均覆盖；明确不复刻战斗动画、不提供背面查看器、未知动画选择不瞎自动配对（非新增任务）。`TryGetFront` 原始语义保留。
 
 验证：solution 构建 0 警告 0 错误（约 9.33 秒，日志 `artifacts/integration-build-issue2dir-issue11pid.log`）；过滤 `MercurySpeciesTransitionTests|MercuryPidSpotsTests`：合计 51/51，其中 **MercurySpeciesTransitionTests 35/35、MercuryPidSpotsTests 16/16**，0 跳过（日志 `artifacts/integration-mercury-issue2dir-issue11pid-tests.log`）。环境：`MERCURY_TEST_ROM`=v1.1、`MERCURY_TEST_ROM_V10`=`Z:\来自：百度网盘\...\Version 1.0.gba`、`MERCURY_TEST_PACK`=local-verified-1。未跑全库、未重跑 installer、未重导出包。
 
