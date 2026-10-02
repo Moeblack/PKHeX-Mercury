@@ -24,8 +24,15 @@
 | 10 | mercury（Issue 1 UI） | d6129eb97c4d0f0bccb58ee2ee7f0d1c2c5b9e0f | 727e59ca7 | Synchronize Mercury Unown PID fields before native preview |
 | 11 | mercury（Issue 1 UI） | 9372255e7 | 410144774 | Disambiguate duplicate Mercury species labels without changing IDs |
 | 12 | fix/mercury-issue-05-provisioning | cb29075b6b2094f8a969901fed041b3f9be8d16f | 9546efb96 | fix(mercury): provision ROM profile with automatic charmap setup |
+| 13 | fix/mercury-issue-02-mechanisms | 0f7a9a6c44f051f20364ac882b93fc8e1e3ff0df | 8d5e17c08 | Add evidence-scoped Mercury form mechanism catalog |
+| 14 | fix/mercury-issue-02-mechanisms | 424073f11f79f0c726b1b9716abcd2ff60430220 | 0c5152d9a | Explain Mercury form mechanisms in native species tooltip |
+| 15 | fix/mercury-issue-11-forms | 4555bb71e | c1707657d | Add read-only Mercury sprite resource preview from native image menu |
 
-集成分支 pick HEAD：`9546efb96`。十二次 cherry-pick 均已落地（第 7 次冲突按 Main 单逐块解决；其余自动合并），未选整文件 ours/theirs，未重写其它代码。
+集成分支 HEAD（本次记录时）：`c1707657d`。十五次 cherry-pick 均已落地（第 7 次冲突逐块解决；第 15 次语言文件冲突按“键名集合不重叠且均纯新增”规则保留两侧全集），未重写其它代码。
+
+第 15 次语言文件冲突规则：`lang_en.txt` / `lang_zh-Hans.txt` 的 Issue 5 setup 键与 Issue 11 preview 键互不重叠、均为新增，故每个文件按 ours 全部键后接 theirs 全部键拼接，保留两侧、不删任何一侧。后续同类仅当确认键名集合不重叠且均纯新增时按此处理；出现相同键不同值必须回 Main，不盲目 both。
+
+Issue 2 状态：已证 PID/性别/运行态机制已分类并接入原生提示（`MercuryFormCatalog.cs` / `MercuryFormMechanism.cs` / `EditMercuryForms.cs`，真实 ROM 2406 断言、原生提示 helper 与 65 控件断言通过）；其它持久形态映射待证。Issue 11 状态：多帧/多页只读预览已实现（`MercurySpritePreview.cs` / `Main.MercurySpritePreview.cs`，47 限定断言通过），默认 0/0 由真实消费者证实；运行时动画语义未全面闭合，不称自动动画适配。二者均未发布。
 
 Issue 5 本次只并入“一步 ROM 配置 + 自动字表 + 无 profile 离线缓存”（新增 `MercuryDataSetup.cs`）；**未实现无 ROM 默认部署，仍标部分实现**，不能以 Issue 1/8 的验证结果证明新增 Issue 5 行为。保留了 `MercuryIntegration` 的空能力修复（`Math.Max(1, data.AbilityNames.Count)`）与后续 Issue 11 独立语言键的接入点（`GameStrings.CreateMercury` 签名未动）。
 
@@ -74,6 +81,7 @@ Issue 11 本次只完成帧/页 API：`MercurySpriteSelection(FrameIndex, Palett
 - 集成 Issue 8 两次提交后构建：**已成功生成，0 警告，0 错误**（约 10.72 秒）。构建日志保存在本机 `artifacts/integration-build-issue8.log`。
 - 集成 Issue 1 UI 两次提交后构建：**已成功生成，0 警告，0 错误**（约 6.97 秒）。构建日志保存在本机 `artifacts/integration-build-issue1ui.log`。
 - 集成 Issue 5 提交后构建（覆盖 Issue 5 合并）：**已成功生成，0 警告，0 错误**（约 7.13 秒）。构建日志保存在本机 `artifacts/integration-build-issue5.log`。
+- 集成 Issue 2 + Issue 11 提交后构建（覆盖前次 Issue 2 与本次 Issue 11）：**已成功生成，0 警告，0 错误**（约 7.35 秒）。构建日志保存在本机 `artifacts/integration-build-issue2-11.log`。
 
 ## Issue 3（729 号道具图像）：阻塞结论
 
