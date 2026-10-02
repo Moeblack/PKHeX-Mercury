@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using PKHeX.Core;
 
 namespace PKHeX.Mercury.Core;
 
@@ -38,12 +39,13 @@ public static class MercuryLegalityAnalysis
 
         MercurySpecies? species = speciesData && pk.Species > 0 && pk.Species < MercuryRomLayout.SpeciesCount
             ? data!.Species[pk.Species] : null;
+        Learnset? levelUp = species is null ? null : data!.GetLevelUpLearnset(pk.Species);
         for (int i = 0; i < 4; i++)
         {
             int move = pk.Moves[i];
             string code = $"move.{i + 1}";
             checks.Add(CheckRange($"{code}.range", move, MercuryRomLayout.MoveCount, moveData, "招式ID", "0为空招式"));
-            checks.Add(CheckLearning($"{code}.known-learning", move, species, speciesData && moveData));
+            checks.Add(CheckLearning($"{code}.known-learning", move, species, levelUp, speciesData && moveData));
         }
 
         string encounterReport;
@@ -79,7 +81,7 @@ public static class MercuryLegalityAnalysis
             $"{DataEvidence}；水银profile表与存储契约：{label}范围0..{count - 1}，当前值{value}；{detail}。");
     }
 
-    private static MercuryLegalityCheck CheckLearning(string code, int move, MercurySpecies? species, bool hasData)
+    private static MercuryLegalityCheck CheckLearning(string code, int move, MercurySpecies? species, Learnset? levelUp, bool hasData)
     {
         if (!hasData)
             return new(code, MercuryCheckStatus.Unknown, MissingData);
@@ -88,8 +90,11 @@ public static class MercuryLegalityAnalysis
         if (species is null || (uint)move >= MercuryRomLayout.MoveCount)
             return new(code, MercuryCheckStatus.Unknown, "空记录或索引不在已覆盖范围内，无法匹配当前物种学习表。" + LearningGap);
 
+        string adapterGap = levelUp is null
+            ? " levelUp含无法无损表示为ushort招式ID/byte等级的条目，该来源匹配为Unknown；原始值未截断。"
+            : string.Empty;
         var sources = new List<string>(3);
-        if (species.LevelUpMoves.Any(z => z.Move == move))
+        if (levelUp?.GetIsLearn((ushort)move) == true)
             sources.Add("levelUp");
         if (species.MachineMoves.Contains(move))
             sources.Add("tmhm");
@@ -98,8 +103,8 @@ public static class MercuryLegalityAnalysis
         if (sources.Count != 0)
             return new(code, MercuryCheckStatus.Pass,
                 $"{DataEvidence}；招式{move}在当前物种{species.Id}的已知学习表中（{string.Join("/", sources)}，已解析move ID）。"
-                + "仅证明当前资料的已知学习表命中，不证明学习等级、实际学习过程或获取来源。");
+                + "仅证明当前资料的已知学习表命中，不证明学习等级、实际学习过程或获取来源。" + adapterGap);
         return new(code, MercuryCheckStatus.Unknown,
-            $"{DataEvidence}；招式{move}未命中当前物种{species.Id}的levelUp/tmhm/tutor。{LearningGap}");
+            $"{DataEvidence}；招式{move}未命中当前物种{species.Id}的可用levelUp/tmhm/tutor。{adapterGap}{LearningGap}");
     }
 }

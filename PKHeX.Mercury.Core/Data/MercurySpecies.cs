@@ -1,4 +1,6 @@
+using System;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace PKHeX.Mercury.Core;
 
@@ -60,7 +62,14 @@ public sealed class MercurySpecies
     /// <summary>Resolved ability-name-pool indices for the three stored abilities.</summary>
     public int[] AbilityNameIndices { get; init; } = new int[3];
 
-    public IReadOnlyList<MercuryLearnMove> LevelUpMoves { get; init; } = [];
+    private readonly IReadOnlyList<MercuryLearnMove> _levelUpMoves = Array.AsReadOnly(Array.Empty<MercuryLearnMove>());
+
+    /// <summary>Snapshot of the original paired learn entries; order and duplicate moves are preserved.</summary>
+    public IReadOnlyList<MercuryLearnMove> LevelUpMoves
+    {
+        get => _levelUpMoves;
+        init => _levelUpMoves = Array.AsReadOnly(value.ToArray());
+    }
 
     /// <summary>TM/HM move ids learnable by this species.</summary>
     public IReadOnlyList<int> MachineMoves { get; init; } = [];

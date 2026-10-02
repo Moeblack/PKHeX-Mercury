@@ -17,6 +17,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\PKHeX.Core\PKHeX.Core.csproj" />
+    <ProjectReference Include="..\..\PKHeX.Mercury.Core\PKHeX.Mercury.Core.csproj" />
   </ItemGroup>
 
   <ItemGroup>

@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Security.Cryptography;
 using System.Text.Json;
+using PKHeX.Core;
 
 namespace PKHeX.Mercury.Core;
 
@@ -25,7 +26,8 @@ namespace PKHeX.Mercury.Core;
 /// </summary>
 public sealed class MercuryGameData
 {
-    private readonly List<MercurySpecies> _species;
+    private readonly IReadOnlyList<MercurySpecies> _species;
+    private readonly Learnset?[] _levelUpLearnsets;
     private readonly List<MercuryMove> _moves;
     private readonly List<MercuryItem> _items;
     private readonly MercuryTextCodec _text;
@@ -50,7 +52,10 @@ public sealed class MercuryGameData
     {
         _romSha256 = romSha256;
         _source = source;
-        _species = species;
+        _species = Array.AsReadOnly(species.ToArray());
+        _levelUpLearnsets = new Learnset?[_species.Count];
+        for (int i = 0; i < _species.Count; i++)
+            _levelUpLearnsets[i] = CreateLevelUpLearnset(_species[i].LevelUpMoves);
         _moves = moves;
         _items = items;
         _text = text;
@@ -70,6 +75,31 @@ public sealed class MercuryGameData
     public string Source => _source;
 
     public IReadOnlyList<MercurySpecies> Species => _species;
+
+    /// <summary>
+    /// Shared level-up adapter for the loaded species snapshot. Null means the index is absent or a move/level
+    /// cannot be represented losslessly by ushort/byte. A returned learnset alone is not proof of ROM data.
+    /// </summary>
+    public Learnset? GetLevelUpLearnset(int species)
+        => (uint)species < (uint)_levelUpLearnsets.Length ? _levelUpLearnsets[species] : null;
+
+    private static Learnset? CreateLevelUpLearnset(IReadOnlyList<MercuryLearnMove> entries)
+    {
+        foreach (var entry in entries)
+        {
+            if ((uint)entry.Move > ushort.MaxValue || (uint)entry.Level > byte.MaxValue)
+                return null;
+        }
+
+        var moves = new ushort[entries.Count];
+        var levels = new byte[entries.Count];
+        for (int i = 0; i < entries.Count; i++)
+        {
+            moves[i] = (ushort)entries[i].Move;
+            levels[i] = (byte)entries[i].Level;
+        }
+        return new Learnset(moves, levels);
+    }
 
     public IReadOnlyList<MercuryMove> Moves => _moves;
 
