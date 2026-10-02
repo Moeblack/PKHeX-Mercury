@@ -21,10 +21,14 @@
 | 7 | mercury（Issue 1 核心单独提交，UI 未完成） | 3cb8d17d06bf688638d8d669a22b8c08df2a9d9f | 516bf4ee8 | Fix Mercury Unown forms and PID constraint preservation |
 | 8 | fix/mercury-issue-08-type | 203c63ee87e73cca6e1e35d84af03a5deae7fcdd | ab442dd1a | Add Mercury type override field and native editor control |
 | 9 | fix/mercury-issue-08-type | 0cfb69c40122b7a2ed4b9cbae06afcb38f8991ea | 3f9044f12 | Preserve unknown boxed Mercury type bits through the PKM bridge |
+| 10 | mercury（Issue 1 UI） | d6129eb97c4d0f0bccb58ee2ee7f0d1c2c5b9e0f | 727e59ca7 | Synchronize Mercury Unown PID fields before native preview |
+| 11 | mercury（Issue 1 UI） | 9372255e7 | 410144774 | Disambiguate duplicate Mercury species labels without changing IDs |
 
-集成分支 HEAD（本次记录时）：`3f9044f12`。九次 cherry-pick 均已落地（第 7 次冲突按 Main 单逐块解决；第 8、9 次自动合并），未选整文件 ours/theirs，未重写其它代码。
+集成分支 pick HEAD：`41014477464311b8ba7f05990568763a89a87edc`。十一次 cherry-pick 均已落地（第 7 次冲突按 Main 单逐块解决；第 8、9、10、11 次自动合并），未选整文件 ours/theirs，未重写其它代码。
 
-Issue 8 两次 pick 只涉及另一桥接/`TypeOverride` 与 UI 挂钩（新增 `EditMercuryTypes.cs`），保留了已合 Issue 1 的 `SetPersonality` 新参数、Unown form 与 PID 约束机制。
+Issue 1 UI 两次 pick 包含 Main 已逐项审定的方案：`UpdateForm` 显式 `Update_ID`、`Update_ID` 先同步后预览、只在水银 `ComboItem` 显示层按 `OrdinalIgnoreCase` 对重复名追加 `Value` 后缀。保留了 Issue 8 的 `ConfigureMercuryTypes`/`LoadMercuryTypes`/`SaveMercuryTypes`（`EditMercuryTypes.cs`）及桥接侧车。
+
+Issue 1 状态为“已实现，2314 项限定验证通过；集成控件联动复核待完成，未发布”，未声称集成联动已通过。
 
 ## 会话分工（一对一，完成项保持完成状态，不重复修改）
 
@@ -63,6 +67,7 @@ Issue 11 本次只完成帧/页 API：`MercurySpriteSelection(FrameIndex, Palett
 - 本次只做一次构建核对已合并代码，未运行额外测试或应用。
 - 集成 Issue 1 核心提交（Unown/PID，含冲突解决）后再次构建：**已成功生成，0 警告，0 错误**（约 7.95 秒）。构建日志保存在本机 `artifacts/integration-build-core.log`。
 - 集成 Issue 8 两次提交后构建：**已成功生成，0 警告，0 错误**（约 10.72 秒）。构建日志保存在本机 `artifacts/integration-build-issue8.log`。
+- 集成 Issue 1 UI 两次提交后构建：**已成功生成，0 警告，0 错误**（约 6.97 秒）。构建日志保存在本机 `artifacts/integration-build-issue1ui.log`。
 
 ## 事实补记（Issue 5/9，未完成）
 
