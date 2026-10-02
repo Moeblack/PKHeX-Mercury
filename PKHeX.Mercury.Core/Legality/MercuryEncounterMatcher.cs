@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
 using System.Text;
+using PKHeX.Core;
 
 namespace PKHeX.Mercury.Core;
 
@@ -9,6 +10,8 @@ namespace PKHeX.Mercury.Core;
 public sealed class MercuryEncounterMatchResult
 {
     public MercuryCheckStatus Status => MercuryCheckStatus.Unknown;
+    /// <summary>Only the recorded species, location and level constraints, not complete source legality.</summary>
+    public MercuryCheckStatus FieldMatchStatus => Candidates.Count > 0 ? MercuryCheckStatus.Pass : MercuryCheckStatus.Unknown;
     public IReadOnlyList<MercuryEncounterRecord> Candidates { get; }
     public IReadOnlyList<MercuryEncounterRecord> DynamicRecords { get; }
     public string Evidence { get; }
@@ -23,8 +26,9 @@ public sealed class MercuryEncounterMatchResult
 
 public static class MercuryEncounterMatcher
 {
-    public const string CoverageGap = "来源仍为Unknown：事件、进化前物种、等级变化、蛋及完整获取链尚未闭合；"
-        + "未命中不代表非法。训练家敌方队伍不作为玩家来源；不凭当前时钟或存档猜测捕获时的动态条件。";
+    public const string CoverageGap = "完整来源仍为Unknown：PID/IV、egg状态、槽可选性及其他生成约束尚未完整核对。"
+        + "普通候选命中仅表示所列字段约束匹配；无候选时，事件、进化前物种、等级修正及动态来源覆盖不足，不能据此判为非法。"
+        + "训练家敌方队伍不作为玩家来源；可能性检查不要求还原真实捕获历史。";
 
     /// <summary>
     /// Matches only recorded species, mapsec (= supplied MetLocation) and inclusive level range.
@@ -47,11 +51,10 @@ public static class MercuryEncounterMatcher
         {
             candidates.AddRange(evidence.Records.Where(z => z.Source == MercuryEncounterSource.OrdinaryTable
                 && z.Species == species && z.MapSection is not null && z.MapSection == metLocation
-                && z.MinLevel is not null && z.MaxLevel is not null && z.MinLevel <= z.MaxLevel
-                && metLevel >= z.MinLevel && metLevel <= z.MaxLevel));
+                && IsLevelMatch(metLevel.Value, z.MinLevel, z.MaxLevel)));
             report.AppendLine(candidates.Count == 0
                 ? "当前表未找到同时符合species、MetLocation/mapsec与MetLevel范围的普通候选槽；可能存在未覆盖或缺字段记录。"
-                : $"当前表存在候选槽：{candidates.Count}条普通槽记录；仅记录字段相符，不证明实际获取来源。");
+                : $"当前表存在候选槽：{candidates.Count}条普通槽记录；通过所列字段约束匹配；未核对其他生成约束。");
         }
         foreach (var candidate in candidates)
             report.AppendLine(Describe(candidate));
@@ -66,6 +69,12 @@ public static class MercuryEncounterMatcher
         report.Append(CoverageGap);
         return new(candidates, dynamicRecords, report.ToString());
     }
+
+    private static bool IsLevelMatch(int level, int? min, int? max)
+        => min is { } lower && max is { } upper
+            && ((uint)level <= byte.MaxValue && (uint)lower <= byte.MaxValue && (uint)upper <= byte.MaxValue
+                ? LevelRangeExtensions.IsLevelWithinRange((byte)level, (byte)lower, (byte)upper)
+                : lower <= level && level <= upper);
 
     private static string Describe(MercuryEncounterRecord record)
         => $"{record.Category}: species={record.Species}, map={Value(record.MapGroup)}/{Value(record.MapNumber)}, "

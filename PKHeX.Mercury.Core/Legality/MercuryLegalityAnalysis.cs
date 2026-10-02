@@ -49,12 +49,18 @@ public static class MercuryLegalityAnalysis
         }
 
         string encounterReport;
+        var fieldMatchStatus = MercuryCheckStatus.Unknown;
         if (hasRom && data!.RomVersion != MercuryRomVersion.V1_1)
             encounterReport = "当前ROM版本不支持现有遭遇证据（仅支持水银1.1）；范围与学习检查仍可使用当前版本ROM资料。" + MercuryEncounterMatcher.CoverageGap;
         else if (encounterEvidence is not null && (!hasRom || !string.Equals(data!.RomSha256, encounterEvidence.RomSha256, StringComparison.OrdinalIgnoreCase)))
             encounterReport = "未使用遭遇候选证据：缺少有效的当前ROM资料或其SHA与遭遇来源声明不一致。" + MercuryEncounterMatcher.CoverageGap;
         else
-            encounterReport = MercuryEncounterMatcher.Match(pk.Species, pk.MetLocation, pk.MetLevel, encounterEvidence).Evidence;
+        {
+            var match = MercuryEncounterMatcher.Match(pk.Species, pk.MetLocation, pk.MetLevel, encounterEvidence);
+            encounterReport = match.Evidence;
+            fieldMatchStatus = match.FieldMatchStatus;
+        }
+        checks.Add(new MercuryLegalityCheck("encounter.record-fields", fieldMatchStatus, encounterReport));
         checks.Add(new MercuryLegalityCheck("encounter.source", MercuryCheckStatus.Unknown, encounterReport));
         return new MercuryLegalityResult(checks);
     }

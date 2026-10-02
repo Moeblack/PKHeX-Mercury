@@ -29,7 +29,7 @@ public sealed record MercuryEncounterRecord(
     string? InfoAddress,
     string? WildAddress)
 {
-    public string DynamicConditions => "未判定：时段、群聚、广播门控及捕获时运行状态未核实。";
+    public string DynamicConditions => "未判定：时段、群聚、广播门控及槽选择规则的组合约束未完整核对。";
 }
 
 /// <summary>
