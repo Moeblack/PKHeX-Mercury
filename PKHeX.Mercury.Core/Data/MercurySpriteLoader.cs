@@ -4,8 +4,8 @@ namespace PKHeX.Mercury.Core;
 
 /// <summary>
 /// Renders the native front sprite RGBA preview from the ROM: LZ77 tile data + ROM palette,
-/// first frame, first palette page. The result is a 64x64 RGBA8888 buffer (row-major, top-left origin),
-/// matching the verified research sprite output byte-for-byte (see docs/mercury-rom-profile.md).
+/// with independent frame and palette-page selection (default 0/0). The result is a 64x64
+/// RGBA8888 buffer (row-major, top-left origin). This does not define a game animation.
 /// </summary>
 internal static class MercurySpriteLoader
 {
@@ -34,10 +34,25 @@ internal static class MercurySpriteLoader
     }
 
     public static bool TryRender(byte[] rom, int resourceIndex, uint pid, uint trainerId, out byte[] rgba)
+        => TryRender(rom, resourceIndex, pid, trainerId, default, out rgba, out _);
+
+    /// <summary>
+    /// Renders one explicit complete frame/page pair. Invalid selections fail without clamping;
+    /// outputs remain empty/default on failure. Resource tails are reported, not rendered as frames/pages.
+    /// The optional palette table index is independent of both the tile resource index and page selection.
+    /// </summary>
+    public static bool TryRender(byte[] rom, int resourceIndex, uint pid, uint trainerId,
+        MercurySpriteSelection selection, out byte[] rgba, out MercurySpriteMetadata metadata, int? paletteIndex = null)
     {
         rgba = [];
+        metadata = default;
+        if (selection.FrameIndex < 0 || selection.PalettePage < 0)
+            return false;
         if (resourceIndex < 0 || resourceIndex >= MercuryRomLayout.SpeciesCount)
             return false; // the ROM itself rejects indices >= 1554
+        int paletteResourceIndex = paletteIndex ?? resourceIndex;
+        if (paletteResourceIndex < 0 || paletteResourceIndex >= MercuryRomLayout.SpeciesCount)
+            return false;
         if (!MercuryRomLayout.TryGetFrontPicTable(rom, out uint frontTable))
             return false;
         if (!TryReadEntry(rom, frontTable, resourceIndex, out uint dataPtr, out _))
@@ -46,34 +61,38 @@ internal static class MercurySpriteLoader
             return false;
         if (!MercuryLz77.TryDecompress(rom, dataPtr, out byte[] tiles))
             return false;
-        if (tiles.Length < MercuryRomLayout.SpriteFrameBytes)
-            return false;
 
         uint paletteSlot = IsShiny(pid, trainerId) ? MercuryRomLayout.ShinyPaletteSlot : MercuryRomLayout.PaletteSlot;
         if (!MercuryRomLayout.TryReadU32(rom, paletteSlot, out uint paletteTable))
             return false;
         if (!MercuryRomLayout.IsRomAddress(paletteTable))
             return false;
-        if (!TryReadEntry(rom, paletteTable, resourceIndex, out uint palettePtr, out _))
+        if (!TryReadEntry(rom, paletteTable, paletteResourceIndex, out uint palettePtr, out _))
             return false;
         if (!MercuryRomLayout.IsRomAddress(palettePtr))
             return false;
         if (!MercuryLz77.TryDecompress(rom, palettePtr, out byte[] paletteBytes))
             return false;
-        if (paletteBytes.Length < MercuryRomLayout.PaletteBytes)
+
+        int frameCount = tiles.Length / MercuryRomLayout.SpriteFrameBytes;
+        int palettePageCount = paletteBytes.Length / MercuryRomLayout.PaletteBytes;
+        if (selection.FrameIndex >= frameCount || selection.PalettePage >= palettePageCount)
             return false;
+        int frameOffset = selection.FrameIndex * MercuryRomLayout.SpriteFrameBytes;
+        int paletteOffset = selection.PalettePage * MercuryRomLayout.PaletteBytes;
 
         Span<int> colors = stackalloc int[16];
         for (int i = 0; i < 16; i++)
         {
-            ushort value = (ushort)(paletteBytes[2 * i] | (paletteBytes[(2 * i) + 1] << 8));
+            int offset = paletteOffset + (2 * i);
+            ushort value = (ushort)(paletteBytes[offset] | (paletteBytes[offset + 1] << 8));
             colors[i] = Expand555(value);
         }
 
         var output = new byte[Width * Height * 4];
         for (int pixel = 0; pixel < Width * Height; pixel++)
         {
-            byte packed = tiles[pixel >> 1];
+            byte packed = tiles[frameOffset + (pixel >> 1)];
             int colorIndex = (pixel & 1) == 0 ? packed & 0x0F : packed >> 4;
             int x = (pixel % 8) + (((pixel / 64) % 8) * 8);
             int y = ((pixel / 8) % 8) + ((pixel / 512) * 8);
@@ -86,6 +105,8 @@ internal static class MercurySpriteLoader
         }
 
         rgba = output;
+        metadata = new MercurySpriteMetadata(frameCount, palettePageCount,
+            tiles.Length % MercuryRomLayout.SpriteFrameBytes, paletteBytes.Length % MercuryRomLayout.PaletteBytes);
         return true;
     }
 

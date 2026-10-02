@@ -509,14 +509,27 @@ public sealed class MercuryGameData
     /// Returns null when the ROM is unavailable or the resource cannot be resolved.
     /// </summary>
     public byte[]? GetSpriteRgba(int species, uint pid, uint trainerId, out int width, out int height)
+        => GetSpriteRgba(species, pid, trainerId, default, out width, out height, out _);
+
+    /// <summary>
+    /// Renders an explicit front-sprite frame and palette page as RGBA8888 64x64.
+    /// Normal/shiny remains selected by PID and trainer ID, independently of the frame/page.
+    /// Returns null for unavailable resources or negative/out-of-range selections. Only complete
+    /// 2048-byte frames / 32-byte pages are selectable; metadata reports any trailing bytes separately.
+    /// The optional palette table index overrides the resolved resource index, not the palette page.
+    /// On failure, dimensions are zero and metadata is default. No animation pairing is implied.
+    /// </summary>
+    public byte[]? GetSpriteRgba(int species, uint pid, uint trainerId, MercurySpriteSelection selection,
+        out int width, out int height, out MercurySpriteMetadata metadata, int? paletteIndex = null)
     {
         width = 0;
         height = 0;
+        metadata = default;
         if (_rom is null)
             return null;
 
         int index = GetSpriteIndex(species, pid);
-        if (!MercurySpriteLoader.TryRender(_rom, index, pid, trainerId, out byte[] rgba))
+        if (!MercurySpriteLoader.TryRender(_rom, index, pid, trainerId, selection, out byte[] rgba, out metadata, paletteIndex))
             return null;
 
         width = MercurySpriteLoader.Width;
