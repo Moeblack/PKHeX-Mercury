@@ -21,9 +21,10 @@ public static class MercuryFormCatalog
     public const string SourceTableSha256 = MercuryTransitionTableV1_1.SourceTableSha256;
     public const string RomSha256 = MercuryTransitionTableV1_1.RomSha256;
 
+    private static readonly IReadOnlyDictionary<ushort, MercuryFormMechanism> Resources = CreateResources();
     private static readonly IReadOnlyDictionary<ushort, MercuryFormMechanism> Known = CreateKnown();
 
-    private static Dictionary<ushort, MercuryFormMechanism> CreateKnown()
+    private static Dictionary<ushort, MercuryFormMechanism> CreateResources()
     {
         var result = new Dictionary<ushort, MercuryFormMechanism>
         {
@@ -46,6 +47,12 @@ public static class MercuryFormCatalog
                     new(0x338, 0x338, genderHelperReturnsFemale: true),
                 ]),
         };
+        return result;
+    }
+
+    private static Dictionary<ushort, MercuryFormMechanism> CreateKnown()
+    {
+        var result = new Dictionary<ushort, MercuryFormMechanism>(Resources);
 
         var tables = MercuryTransitionTableV1_1.Records.ToArray().GroupBy(r => r.Source)
             .ToDictionary(g => g.Key, g => g.OrderBy(r => r.Slot).ToArray());
@@ -62,14 +69,28 @@ public static class MercuryFormCatalog
     }
 
     /// <summary>
-    /// Looks up an internal species without retail-number conversion or masking. Unlisted IDs,
-    /// including resource targets, return Unresolved with no proven options, never "has no forms".
+    /// Explicit V1_1 catalog query for research callers, without retail-number conversion or masking.
+    /// Production callers must use the version-aware overload. Unlisted IDs remain Unresolved.
     /// </summary>
     public static MercuryFormMechanism Get(ushort species)
         => Known.TryGetValue(species, out var mechanism) ? mechanism : new(species,
             MercuryFormMechanismKind.Unresolved,
             "No proven form mechanism or persistent base/form-to-internal-species mapping in this catalog.",
             MercuryFormContext.None, [], []);
+
+    /// <summary>
+    /// Attaches conversion records only for the verified V1_1 descriptor, including profiles/packs without a ROM cache.
+    /// Other or unknown versions retain the independent resource rules, but never inherit V1_1 conversion records.
+    /// </summary>
+    public static MercuryFormMechanism Get(ushort species, MercuryRomVersion? version)
+    {
+        if (version == MercuryRomVersion.V1_1)
+            return Get(species);
+        return Resources.TryGetValue(species, out var mechanism) ? mechanism : new(species,
+            MercuryFormMechanismKind.Unresolved,
+            "Conditional species-transition data covers Mercury 1.1 only; this version's transition mechanism is unresolved.",
+            MercuryFormContext.None, [], []);
+    }
 
     private static MercuryFormMechanism CreateTransitions(ushort species, MercurySpeciesTransition[] transitions,
         ushort? coveredReverseFinalTarget)

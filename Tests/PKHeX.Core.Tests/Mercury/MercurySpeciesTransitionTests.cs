@@ -1,9 +1,11 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Security.Cryptography;
 using System.Text;
+using System.Text.Json.Nodes;
 using PKHeX.Mercury.Core;
 using PKHeX.WinForms.Controls;
 using Xunit;
@@ -575,8 +577,119 @@ public sealed class MercurySpeciesTransitionTests
         Assert.Throws<NotSupportedException>(() => list.Clear());
     }
 
+    [Theory]
+    [InlineData(0, 0)]
+    [InlineData(10, 0)]
+    [InlineData(11, 233)]
+    public void VersionAwareCatalogDoesNotLeakV11Transitions(int versionId, int expectedCount)
+    {
+        var version = GetVersion(versionId);
+        var mechanisms = Enumerable.Range(0, 1554).Select(s => MercuryFormCatalog.Get((ushort)s, version)).ToArray();
+        Assert.Equal(expectedCount, mechanisms.Sum(m => m.Transitions.Count));
+        foreach (ushort source in Sources)
+        {
+            var mechanism = MercuryFormCatalog.Get(source, version);
+            Assert.Equal(source, mechanism.BaseSpecies);
+            if (versionId == 11)
+            {
+                Assert.Same(MercuryFormCatalog.Get(source), mechanism);
+                continue;
+            }
+            Assert.Equal(MercuryFormMechanismKind.Unresolved, mechanism.Kind);
+            Assert.Contains("Mercury 1.1 only", mechanism.SelectionSource);
+            Assert.Empty(mechanism.Transitions);
+            Assert.Empty(mechanism.Options);
+            Assert.Null(mechanism.CoveredReverseFinalTarget);
+        }
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(10)]
+    [InlineData(11)]
+    public void ResourceMechanismsSurviveVersionFiltering(int versionId)
+    {
+        ushort[] resources = [201, 0x1F6, 0x1F7, 0x23E, 0x285, 0x286, 0x308, 0x338];
+        foreach (ushort source in resources)
+        {
+            var original = MercuryFormCatalog.Get(source);
+            var mechanism = MercuryFormCatalog.Get(source, GetVersion(versionId));
+            Assert.Equal(original.Kind, mechanism.Kind);
+            Assert.Equal(original.SelectionSource, mechanism.SelectionSource);
+            Assert.Equal(original.Options, mechanism.Options);
+            Assert.Equal(original.RequiredContext, mechanism.RequiredContext);
+            Assert.Equal(original.CanEditStoredForm, mechanism.CanEditStoredForm);
+            Assert.Empty(mechanism.Transitions);
+            Assert.Null(mechanism.CoveredReverseFinalTarget);
+        }
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(10)]
+    [InlineData(11)]
+    public void TooltipUsesActualDataVersionWithoutRequiringRomOrBlockingSpeciesEditing(int versionId)
+    {
+        var data = versionId switch { 11 => Version11Data, 10 => Version10Data, _ => MercuryGameData.NumericOnly() };
+        Assert.Same(GetVersion(versionId), data.RomVersion);
+        Assert.False(data.HasVerifiedRom);
+        if (versionId != 0)
+            Assert.Equal("profile", data.Source);
+        foreach (ushort species in new ushort[] { 3, 406, 1081 })
+        {
+            var pk = new MercuryPKM(data, MercuryPokemon.Create(species, 0x12345678));
+            var before = pk.Data.ToArray();
+            string tooltip = FormatTooltip(pk);
+            Assert.Equal(before, pk.Data.ToArray());
+            Assert.Equal(species, pk.Species);
+            if (versionId == 11)
+            {
+                Assert.Contains("→", tooltip);
+                Assert.DoesNotContain("资料仅覆盖", tooltip);
+            }
+            else
+            {
+                Assert.Contains("形态机制未查明", tooltip);
+                Assert.Contains("条件转换资料仅覆盖水银1.1", tooltip);
+                Assert.DoesNotContain("→", tooltip);
+                Assert.DoesNotContain("末次写入", tooltip);
+            }
+            pk.Species = 6;
+            Assert.Equal((ushort)6, pk.Species); // Missing conversion metadata is not a save-editing restriction.
+        }
+        var unown = new MercuryPKM(data, MercuryPokemon.Create(201, 0x12345678));
+        Assert.Contains("形态由PID决定", FormatTooltip(unown));
+        Assert.DoesNotContain("条件转换资料仅覆盖", FormatTooltip(unown));
+    }
+
+    private static MercuryRomVersion? GetVersion(int id)
+        => id switch { 10 => MercuryRomVersion.V1_0, 11 => MercuryRomVersion.V1_1, _ => null };
+
+    private static readonly MercuryGameData Version11Data = LoadVersionProfile(MercuryRomVersion.V1_1);
+    private static readonly MercuryGameData Version10Data = LoadVersionProfile(MercuryRomVersion.V1_0);
+
+    private static MercuryGameData LoadVersionProfile(MercuryRomVersion version)
+    {
+        string directory = Path.Combine(Path.GetTempPath(), "mercury-transition-version-" + Guid.NewGuid().ToString("N"));
+        try
+        {
+            MercuryGameData.NumericOnly().SaveProfile(directory);
+            string path = Path.Combine(directory, "mercury-profile.json");
+            var profile = JsonNode.Parse(File.ReadAllText(path))!.AsObject();
+            profile["source"] = "profile";
+            profile["romSha256"] = version.Sha256;
+            File.WriteAllText(path, profile.ToJsonString());
+            return MercuryGameData.LoadProfile(directory); // Real descriptor validation, no ROM cache or reflection spoof.
+        }
+        finally
+        {
+            if (Directory.Exists(directory))
+                Directory.Delete(directory, true);
+        }
+    }
+
     private static MercuryPKM CreatePokemon(ushort species)
-        => new(MercuryGameData.NumericOnly(), MercuryPokemon.Create(species, 0x12345678));
+        => new(Version11Data, MercuryPokemon.Create(species, 0x12345678));
 
     private static string FormatTooltip(MercuryPKM pk)
     {

@@ -8,14 +8,16 @@ public partial class PKMEditor
 {
     private static string GetMercurySpeciesTooltip(MercuryPKM pk)
     {
-        var mechanism = MercuryFormCatalog.Get(pk.Species);
+        var mechanism = MercuryFormCatalog.Get(pk.Species, pk.GameData.RomVersion);
         string description = mechanism.Kind switch
         {
             MercuryFormMechanismKind.PidDerived => "形态由PID决定，可通过原生形态选择器编辑",
             MercuryFormMechanismKind.GenderDependentResource => "图像差异由性别/PID决定，不是独立持久形态字段",
             MercuryFormMechanismKind.RuntimeDependentResource => "图像受运行时状态影响，当前存档无法确定该状态，不写入形态字段",
             MercuryFormMechanismKind.ConditionalSpeciesTransition => string.Empty,
-            _ => "形态机制未查明",
+            _ => pk.GameData.RomVersion == MercuryRomVersion.V1_1
+                ? "形态机制未查明"
+                : "形态机制未查明；条件转换资料仅覆盖水银1.1",
         };
         if (mechanism.Transitions.Count != 0)
         {

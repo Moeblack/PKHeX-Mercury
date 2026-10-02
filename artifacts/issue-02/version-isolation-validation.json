@@ -1,0 +1,12 @@
+{
+  "base": "cb62485423450e35465acf8ea92d16e64ae7201f",
+  "change": "Separate resource classification from V1_1-only transition metadata; production tooltip passes MercuryGameData.RomVersion.",
+  "compatibility": "Get(species) remains an explicit V1_1 research query. Get(species, version) exposes 233 transitions only for MercuryRomVersion.V1_1. V1_0/null expose no transitions or reverse-final target, while all eight existing PID/gender/runtime categories remain available. Missing conversion data does not disable save editing.",
+  "profileProof": "Tests load version-declared numeric fixture profiles through the production LoadProfile descriptor validation, with no ROM cache; V1_1 exposes transitions, V1_0 does not. No real game-data facts are inferred from the fixture tables.",
+  "testCommand": "dotnet test Tests/PKHeX.Core.Tests/PKHeX.Core.Tests.csproj -m:1 --nologo --filter FullyQualifiedName~PKHeX.Core.Tests.Mercury.MercurySpeciesTransitionTests",
+  "tests": {"passed": 54, "failed": 0, "skipped": 0},
+  "buildCommand": "dotnet build PKHeX.WinForms/PKHeX.WinForms.csproj -m:1 --nologo",
+  "build": {"exitCode": 0, "warnings": 0, "errors": 0},
+  "sdk": "Prescribed PKHeX-Mercury private dotnet SDK",
+  "scope": "Only the requested xunit class and WinForms build ran. Tooltip formatting was tested, not interactive GUI behavior. No ROM reader, profile/pack schema, species setter or Form editing implementation changed."
+}
