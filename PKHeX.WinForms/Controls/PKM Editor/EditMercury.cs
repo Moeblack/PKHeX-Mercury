@@ -24,6 +24,7 @@ public partial class PKMEditor
         LoadMisc3(pk); // PID / nature / gender / language / ball / origin / met location
         LoadMisc1(pk); // species / level / exp / nickname / OT / IVs / EVs / moves
         LoadMisc2(pk); // pokerus / egg / held item / friendship
+        LoadMercuryTypes(pk);
 
         if (CB_Ability.Items.Count > 0)
             CB_Ability.SelectedIndex = Math.Clamp(GetMercuryAbilitySlot(pk), 0, CB_Ability.Items.Count - 1);
@@ -40,6 +41,7 @@ public partial class PKMEditor
         SaveMisc3(pk); // PID first, then nature/gender derive from it
         SaveMisc2(pk); // egg flag before EXP is stored
         SaveMisc1(pk);
+        SaveMercuryTypes(pk);
 
         // Slot index (0/1/2) rather than a stored id: RefreshAbility resolves the effective stored ability.
         pk.RefreshAbility(CB_Ability.SelectedIndex);

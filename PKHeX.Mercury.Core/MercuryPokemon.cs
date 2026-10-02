@@ -323,9 +323,18 @@ public sealed class MercuryPokemon
 
     /// <summary>
     /// Raw 5-bit type-override field (0x13 bits 3-7; the expanded form stores it at 0x1E).
-    /// Read-only: ordinary edits preserve it, an explicit species change clears it so the ROM derives the new type.
+    /// Values range from 0 to 31 and are not type IDs. An explicit species change clears the field.
     /// </summary>
-    public int TypeOverride => _box[MercurySaveLayout.BoxFlags] >> 3;
+    public int TypeOverride
+    {
+        get => _box[MercurySaveLayout.BoxFlags] >> 3;
+        set
+        {
+            if ((uint)value > 31)
+                throw new ArgumentOutOfRangeException(nameof(value), value, "Raw type override must be between 0 and 31.");
+            _box[MercurySaveLayout.BoxFlags] = (byte)((_box[MercurySaveLayout.BoxFlags] & MercurySaveLayout.FlagBits) | (value << 3));
+        }
+    }
 
     /// <summary>Nature index 0-24 derived from <c>PID % 25</c>.</summary>
     public int Nature => (int)(PID % 25);

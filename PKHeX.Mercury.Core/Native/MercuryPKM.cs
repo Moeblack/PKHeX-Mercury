@@ -157,6 +157,20 @@ public sealed class MercuryPKM : PKM, IAppliedMarkings3
         set { var m = Mon; m.Species = value; SetMon(m); }
     }
 
+    /// <summary>Raw Mercury type override; only values preserved by the party encoding are writable. Not a Tera type.</summary>
+    public int TypeOverride
+    {
+        get => Mon.TypeOverride;
+        set
+        {
+            if (value is not (0 or 31) && (value < 1 || value > 25 || !MercurySaveLayout.IsValidType(value - 1)))
+                throw new ArgumentOutOfRangeException(nameof(value), value, "Type override must be a supported Mercury party encoding.");
+            var m = Mon;
+            m.TypeOverride = value;
+            SetMon(m);
+        }
+    }
+
     public override uint PID
     {
         get => Mon.PID;

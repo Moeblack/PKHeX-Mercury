@@ -272,6 +272,7 @@ public sealed partial class PKMEditor : UserControl, IMainEditor
         // Load Extra Byte List
         SetPKMFormatExtraBytes(pk);
         (GetFieldsfromPKM, GetPKMfromFields) = GetLoadSet(pk);
+        ConfigureMercuryTypes(pk);
         var mercuryMoveData = pk is MercuryPKM mercury ? mercury.GameData : null;
         foreach (var move in Moves)
         {
