@@ -762,10 +762,12 @@ public sealed class MercuryGameData
 
     private static uint[][] ReadGrowthTables(byte[] rom)
     {
-        // Real tables per the ROM consumer GetLevelFromBoxMonExp (0x0803E830): base 0x09DFE8CC,
+        // Real tables per GetLevelFromBoxMonExp (0x0803E830): its literal supplies the table base.
         // 6 growth rows, 0x400-byte physical stride, threshold[level] for level 0..100. Values are read
         // verbatim and validated against the known level-100 totals and monotonicity.
-        long baseOffset = MercuryRomLayout.ToOffset(MercuryRomLayout.GrowthTables);
+        if (!MercuryRomLayout.TryResolveSlot(rom, MercuryRomLayout.GrowthTableLiteral, out uint table))
+            return [];
+        long baseOffset = MercuryRomLayout.ToOffset(table);
         uint[][] rows = new uint[MercuryRomLayout.GrowthRateCount][];
         for (int r = 0; r < rows.Length; r++)
         {

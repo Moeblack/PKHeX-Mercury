@@ -10,7 +10,7 @@ namespace PKHeX.Mercury.Core;
 internal static class MercuryRomLayout
 {
     /// <summary>SHA-256 of the one supported ROM build. Any other image is rejected.</summary>
-    public const string ExpectedSha256 = "131b009df7ab252deff0d6a0518ab82f88e82c940ee68d50d31033a899f7e3dd";
+    public const string ExpectedSha256 = MercuryRomVersion.V11Sha256;
 
     public const int RomSize = 0x2000000; // 32 MiB
     public const uint GbaBase = 0x08000000;
@@ -37,10 +37,10 @@ internal static class MercuryRomLayout
     public const uint TutorMovesSlot = 0x08120BE4;     // u16[160]
 
     // Growth-rate experience tables, proven by the ROM consumer GetLevelFromBoxMonExp (0x0803E830):
-    // 0x0803E850 ldr r6,[literal 0x0803E894]=0x09DFE8CC; growth index = base stats +0x13 (0x0803E85C);
+    // 0x0803E850 ldr r6,[literal 0x0803E894]; growth index = base stats +0x13 (0x0803E85C).
     // row stride 0x400 (0x0803E85E..0x0803E862: movs r5,#0x20; lsls r5,#5); threshold read at [level*4],
     // loop level<=100. Six rows of 101 u32 (level 0..100). The legacy copy at 0x08253AE4 is NOT used.
-    public const uint GrowthTables = 0x09DFE8CC;
+    public const uint GrowthTableLiteral = 0x0803E894;
 
     // --- table shapes ---
     public const int SpeciesCount = 1554;
