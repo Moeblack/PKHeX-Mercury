@@ -473,7 +473,10 @@ internal static class MercuryIntegration
             for (int i = 0; i < abilities.Length; i++)
                 abilities[i] = data.AbilityNames[i];
 
-            return GameStrings.CreateMercury(lang, species, moves, items, abilities, data.GetBallNames(lang), data.GetLocationNames(lang));
+            var strings = GameStrings.CreateMercury(lang, species, moves, items, abilities, data.GetBallNames(lang), data.GetLocationNames(lang));
+            // This fresh instance is not the shared retail cache. Bind the complete four-bit ID space.
+            data.GetOriginNames(lang).CopyTo(strings.gamelist, 0);
+            return strings;
         }
     }
 }

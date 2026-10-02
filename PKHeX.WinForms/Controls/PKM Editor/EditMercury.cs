@@ -50,8 +50,8 @@ public partial class PKMEditor
     }
 
     /// <summary>
-    /// Builds a numeric internal location list for Mercury: the location/egg-location fields are an opaque
-    /// value space with no proven name table, so display the explicit value instead of a retail place name.
+    /// Builds the complete byte-indexed Mercury location list, including unknown values and slots
+    /// with no valid name pointer. A missing name never removes the stored value from the dropdown.
     /// </summary>
     private static List<ComboItem> BuildMercuryLocationList()
     {

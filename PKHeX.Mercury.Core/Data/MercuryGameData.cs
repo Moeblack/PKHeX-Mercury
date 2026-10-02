@@ -408,30 +408,12 @@ public sealed class MercuryGameData
         return rgba;
     }
 
-    /// <summary>Region-section names used by GetMapName at 0x080C4D78.</summary>
+    /// <summary>Region-section names used by GetMapName at 0x080C4D78, including explicit unknown slots.</summary>
     public string[] GetLocationNames(string language)
-    {
-        var names = new string[256];
-        for (int id = 0; id < names.Length; id++)
-            names[id] = language.StartsWith("zh", StringComparison.Ordinal) ? $"地点编号 {id}" : $"Location ID {id}";
-        if (_rom is null)
-            return names;
-        // The consumer subtracts 0x58 and compares with 0xA4 before indexing this table.
-        for (int index = 0; index < 0xA5; index++)
-        {
-            if (!MercuryRomLayout.TryReadU32(_rom, 0x08C2B000u + (uint)index * 4, out uint pointer))
-                throw new InvalidDataException("Mercury location-name table is truncated.");
-            if (!MercuryRomLayout.IsRomAddress(pointer))
-            {
-                // Existing extraction records 0xFFFFFFFF entries: an in-range index is not a valid pointer.
-                names[index + 0x58] += language.StartsWith("zh", StringComparison.Ordinal)
-                    ? "（名称指针无效）" : " (invalid name pointer)";
-                continue;
-            }
-            names[index + 0x58] = _text.Decode(_rom.AsSpan(checked((int)MercuryRomLayout.ToOffset(pointer))));
-        }
-        return names;
-    }
+        => MercuryIdentifierCatalog.GetNames(GetLocationIdentifiers(), language);
+
+    public MercuryIdentifier[] GetLocationIdentifiers()
+        => MercuryIdentifierCatalog.CreateLocations(_rom, _text);
 
     public byte[]? GetBallSpriteRgba(byte ball, out int width, out int height)
     {
@@ -446,14 +428,13 @@ public sealed class MercuryGameData
     /// Unmapped bytes retain their numeric identity, not a retail ball interpretation.
     /// </summary>
     public string[] GetBallNames(string language)
-    {
-        var names = new string[256];
-        for (int value = 0; value < names.Length; value++)
-            names[value] = language.StartsWith("zh", StringComparison.Ordinal) ? $"球编号 {value}" : $"Ball ID {value}";
-        foreach (var group in _items.Where(item => item.Pocket == 3 && item.Type.HasValue).GroupBy(item => item.Type!.Value))
-            names[group.Key] = string.Join(" / ", group.Select(item => item.Name).Distinct());
-        return names;
-    }
+        => MercuryIdentifierCatalog.GetNames(GetBallIdentifiers(), language);
+
+    public MercuryIdentifier[] GetBallIdentifiers()
+        => MercuryIdentifierCatalog.CreateBalls(_items);
+
+    public string[] GetOriginNames(string language)
+        => MercuryIdentifierCatalog.GetNames(MercuryIdentifierCatalog.CreateOrigins(language), language);
 
     /// <summary>Resolved display name for a species' ability slot (0 = first, 1 = second, 2 = hidden).</summary>
     public string AbilityName(int species, int abilitySlot)
