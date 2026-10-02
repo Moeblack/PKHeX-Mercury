@@ -49,7 +49,7 @@
 
 集成分支 pick HEAD（本次记录时）：`58400cfb5`。三十四次 cherry-pick 均已落地：冲突发生于第 7、15、23、26 次并按规则解决；其余无冲突。Method1（第 32 次）保留。
 
-第 33/34 次增量（Issue 2，暂不结项）：V1.1 method 253/254 全部 233 记录/226 源已分类，含通用 7 分支与真实 slot 顺序；V1.0 与 unknown 不套用 1.1 转换表。PID/性别/运行态分类保留，不伪造永久 Form 边界；消除明确的全表目录覆盖缺口，但**不称所有可能形态机制全部闭合**。版本选择由 `MercuryIdentifierCatalog`（85–92）与生产 tooltip 传 `pk.GameData.RomVersion` 驱动。验证：solution 构建 0 警告 0 错误（约 7.55 秒，日志 `artifacts/integration-build-transitions-full.log`）；`MercurySpeciesTransitionTests` **54/54 通过、0 跳过**（日志 `artifacts/integration-mercury-species-transition-tests.log`）。未跑全库、未重跑无关包安装。
+第 33/34 次增量（Issue 2 **已完成**）：V1.1 method 253/254 全部 233 记录/226 源已分类，含通用 7 分支与真实 slot 顺序；V1.0 与 unknown 不套用 1.1 转换表。PID/性别/运行态分类保留，不新增永久 Form setter。版本选择由 `MercuryFormCatalog`（85–92）与生产 tooltip 传 `pk.GameData.RomVersion` 驱动。范围说明（非全部未知）：1.0 未提供转换目录、不宣称完整战斗模拟；外层门控/其它生命周期未全解释不构成已知缺失的存档字段。验证：solution 构建 0 警告 0 错误（约 7.55 秒，日志 `artifacts/integration-build-transitions-full.log`）；`MercurySpeciesTransitionTests` **54/54 通过、0 跳过**（日志 `artifacts/integration-mercury-species-transition-tests.log`）。未跑全库、未重跑无关包安装。
 
 第 32 次增量（Issue 6 仍部分）：按六 IV 低 30 位调用原生 `MethodFinder`；`Pass` **仅表示数学相关性**，未匹配为 `Unknown`、空槽为 `Unknown`，原有完整来源仍为 `Unknown`。映射：`PKHeX.Mercury.Core/Legality/MercuryLegalityAnalysis.cs`（24–84 区域）调用上游 MethodFinder；测试 `Tests/PKHeX.Core.Tests/Mercury/MercuryMethod1Tests.cs`。**不将此视为完整规则完成**。验证：solution 构建 0 警告 0 错误（约 7.55 秒，日志 `artifacts/integration-build-method1.log`）；`MercuryMethod1Tests` **25/25 通过、0 跳过**（不需 ROM，日志 `artifacts/integration-mercury-method1-tests.log`）。
 
