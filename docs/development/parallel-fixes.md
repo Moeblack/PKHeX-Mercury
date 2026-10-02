@@ -43,6 +43,12 @@ Issue 11 本次只完成帧/页 API：`MercurySpriteSelection(FrameIndex, Palett
 - 本次只做一次构建核对已合并代码，未运行额外测试或应用。
 - 集成 Issue 1 核心提交（Unown/PID，含冲突解决）后再次构建：**已成功生成，0 警告，0 错误**（约 7.95 秒）。构建日志保存在本机 `artifacts/integration-build-core.log`。
 
+## 事实补记（Issue 5/9，未完成）
+
+- Issue 9：用户已提供实际 v1.0 ROM（详见本机记录），读取与版本布局对照进行中；不以放宽哈希代替真实输入。
+- Issue 5：公开资料入口无明确再分发许可，也没有可直接部署的资源包；现状仍需用户自备 ROM，不标完成。
+- 详细本机报告保存在本机 `artifacts/`（公开文档不含本机路径）。
+
 ## 说明
 
 - Issue 7 的 NumericOnly 修补仍有后续提交，待 Main 通知后再 pick；本次未包含。
