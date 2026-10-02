@@ -56,6 +56,8 @@
 
 当轮到齐提交：本轮批准的 `b1bd105a` 已集成（→ 9632a04ba）；无其它待集成（33–36 均已在链上）。
 
+Issue 6 结项（Main 裁定，不写“完整合法性已实现”）：**已完成本轮约定的有依据检查系统；非全游戏完整合法性判定器**。交付单只/批量原生入口，覆盖范围/学习表/普通遭遇字段/原生 Method1 辅助/公开配信精确来源；`Required`/`Diagnostic` 明确，`Invalid` 优先、真实缺口 `Unknown`。剩余覆盖限制仍 `Unknown`：普通获取全集、进化前/蛋招式组合、变化后配信未识别来源；静态脚本 gift 非任务。状态汇总：Issue 3、5 外部阻塞，其余 9 项当前范围完成；所有可执行增量已集成、未发布。
+
 第 36 次增量（Issue 6 仍部分，不称完整游戏合法）：检查角色区分——任何 `Invalid` 优先；`Required` 的 `Unknown` 阻止通过；0 个 Required Unknown 才可通过；`rng`/`distribution` 参考恒为 `Diagnostic`，exact 配信时 ordinary fields/learning 为 `Diagnostic`；`range`/`source` 仍为 `Required`。无 ROM 仍 Unknown；真实 ROM 下 4 条 exact 配信全部适用检查 Pass。不适用辅助诊断不再算作来源未知原因；静态 gift 排除保持。验证：solution 构建 0 警告 0 错误（约 8.65 秒，日志 `artifacts/integration-build-check-roles.log`）；4 类过滤 `MercuryLegalityApplicabilityTests|MercuryDistributionReferenceTests|MercuryEncounterFieldMatchTests|MercuryMethod1Tests` 合计 **86/86 通过、0 跳过**（日志 `artifacts/integration-mercury-check-roles-tests.log`）。未跑全库/installer。
 
 当轮到齐提交：本轮批准的 `50c724cff` 已集成（→ a35de94cc）；除该提交外，本轮无其它待集成提交（此前的 33–35 均已集成）。
