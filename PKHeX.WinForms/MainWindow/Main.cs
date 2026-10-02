@@ -106,6 +106,7 @@ public partial class Main : Form
         mnu.RequestEditorQR += ClickQR;
         mnu.RequestEditorSaveAs += MainMenuSave;
         dragout.ContextMenuStrip = mnu.mnuL;
+        InitializeMercurySpritePreview();
         C_SAV.menu.RequestEditorLegality = DisplayLegalityReport;
         components.Add(mnu);
 
