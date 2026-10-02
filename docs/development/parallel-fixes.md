@@ -44,8 +44,12 @@
 | 30 | fix/mercury-issue-02-directory | d720625b12922b05245ab773deb4a01457209e8e | f8628e63e | Expand proven Mercury transitions and clarify temporary species writes |
 | 31 | fix/mercury-issue-11-pid | 0e978ab43 | 0e5b48cef | Apply verified Mercury PID spots to indexed entity sprite buffers |
 | 32 | fix/mercury-issue-06-method1 | 0721bb7da5ea6d7e68c633ada9f8e4ae783fb383 | 576e586d6 | Reuse native Method1 correlation for Mercury diagnostics |
+| 33 | fix/mercury-issue-02-full-catalog | cb62485423450e35465acf8ea92d16e64ae7201f | 3862b0e34 | Classify all V1_1 Mercury transitions through shared consumers |
+| 34 | fix/mercury-issue-02-version-gate | 87be3710a16488be692cd5fb1d95f1797441e95e | 58400cfb5 | Gate Mercury transition metadata on the actual version descriptor |
 
-集成分支 pick HEAD（本次记录时）：`576e586d6`。三十二次 cherry-pick 均已落地：冲突发生于第 7、15、23、26 次并按规则解决；其余无冲突。
+集成分支 pick HEAD（本次记录时）：`58400cfb5`。三十四次 cherry-pick 均已落地：冲突发生于第 7、15、23、26 次并按规则解决；其余无冲突。Method1（第 32 次）保留。
+
+第 33/34 次增量（Issue 2，暂不结项）：V1.1 method 253/254 全部 233 记录/226 源已分类，含通用 7 分支与真实 slot 顺序；V1.0 与 unknown 不套用 1.1 转换表。PID/性别/运行态分类保留，不伪造永久 Form 边界；消除明确的全表目录覆盖缺口，但**不称所有可能形态机制全部闭合**。版本选择由 `MercuryIdentifierCatalog`（85–92）与生产 tooltip 传 `pk.GameData.RomVersion` 驱动。验证：solution 构建 0 警告 0 错误（约 7.55 秒，日志 `artifacts/integration-build-transitions-full.log`）；`MercurySpeciesTransitionTests` **54/54 通过、0 跳过**（日志 `artifacts/integration-mercury-species-transition-tests.log`）。未跑全库、未重跑无关包安装。
 
 第 32 次增量（Issue 6 仍部分）：按六 IV 低 30 位调用原生 `MethodFinder`；`Pass` **仅表示数学相关性**，未匹配为 `Unknown`、空槽为 `Unknown`，原有完整来源仍为 `Unknown`。映射：`PKHeX.Mercury.Core/Legality/MercuryLegalityAnalysis.cs`（24–84 区域）调用上游 MethodFinder；测试 `Tests/PKHeX.Core.Tests/Mercury/MercuryMethod1Tests.cs`。**不将此视为完整规则完成**。验证：solution 构建 0 警告 0 错误（约 7.55 秒，日志 `artifacts/integration-build-method1.log`）；`MercuryMethod1Tests` **25/25 通过、0 跳过**（不需 ROM，日志 `artifacts/integration-mercury-method1-tests.log`）。
 
@@ -130,6 +134,7 @@ Issue 11 本次只完成帧/页 API：`MercurySpriteSelection(FrameIndex, Palett
 - 集成字段匹配提交后构建：**已成功生成，0 警告，0 错误**（约 7.43 秒）。日志 `artifacts/integration-build-field-match.log`。
 - 集成 Issue 2 目录 16 关系 + Issue 11 PID spots 提交后构建：**已成功生成，0 警告，0 错误**（约 9.33 秒）。日志 `artifacts/integration-build-issue2dir-issue11pid.log`。
 - 集成 Method1 诊断提交后构建：**已成功生成，0 警告，0 错误**（约 7.55 秒）。日志 `artifacts/integration-build-method1.log`。
+- 集成全量形态 + 版本 gate 提交后构建：**已成功生成，0 警告，0 错误**（约 7.55 秒）。日志 `artifacts/integration-build-transitions-full.log`。
 
 ## Issue 3（729 号道具图像）：阻塞结论
 
