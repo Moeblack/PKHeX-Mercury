@@ -3,7 +3,7 @@ using System.Buffers.Binary;
 namespace PKHeX.Mercury.Core;
 
 /// <summary>
-/// Fixed ROM addresses and decoding keys for the supported Mercury 1.1 build.
+/// Shared ROM pointer slots, decoding keys, and verified data-table shapes for known Mercury builds.
 /// Every value here is taken from ROM instruction/pointer evidence (see docs/mercury-rom-profile.md).
 /// Addresses are GBA addresses; convert with <see cref="ToOffset"/> before indexing the ROM byte array.
 /// </summary>

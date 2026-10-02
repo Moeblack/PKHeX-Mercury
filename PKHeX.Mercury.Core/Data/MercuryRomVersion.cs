@@ -11,8 +11,8 @@ public sealed class MercuryRomVersion
     internal const string V10Sha256 = "628607dcbeac3ab471310d5472c8fbd0df250745230207c488f66adbf1a43821";
     internal const string V11Sha256 = "131b009df7ab252deff0d6a0518ab82f88e82c940ee68d50d31033a899f7e3dd";
 
-    /// <summary>Known input only; its complete data and save contracts are not yet enabled.</summary>
-    public static MercuryRomVersion V1_0 { get; } = new("Mercury 1.0", V10Sha256, 0x2000000, false, false);
+    /// <summary>Verified game-data input and shared Mercury save layout.</summary>
+    public static MercuryRomVersion V1_0 { get; } = new("Mercury 1.0", V10Sha256, 0x2000000, true, true);
 
     /// <summary>The currently supported game-data and save-editing build.</summary>
     public static MercuryRomVersion V1_1 { get; } = new("Mercury 1.1", V11Sha256, 0x2000000, true, true);

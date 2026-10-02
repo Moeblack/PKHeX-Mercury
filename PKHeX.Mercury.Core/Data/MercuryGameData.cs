@@ -12,8 +12,8 @@ namespace PKHeX.Mercury.Core;
 /// <para>
 /// Three data sources are supported:
 /// <list type="bullet">
-/// <item><see cref="FromRom"/> reads the tables straight out of the user's own Mercury 1.1 ROM
-/// (fixed SHA-256) and works offline. Chinese labels need an imported charmap; without one the built-in
+/// <item><see cref="FromRom"/> reads the tables straight out of the user's own registered Mercury ROM
+/// (exact SHA-256 and size) and works offline. Chinese labels need an imported charmap; without one the built-in
 /// GBA symbol table is used.</item>
 /// <item><see cref="FromResearch"/> consumes an existing ROM-native research directory (verified via
 /// its manifest hash) without re-extracting anything.</item>
@@ -59,6 +59,9 @@ public sealed class MercuryGameData
 
     /// <summary>SHA-256 of the ROM this data was read from; empty for <see cref="NumericOnly"/>.</summary>
     public string RomSha256 => _romSha256;
+
+    /// <summary>The exact known ROM version, or null for numeric-only data.</summary>
+    public MercuryRomVersion? RomVersion => MercuryRomVersion.TryGetBySha256(_romSha256, out var version) ? version : null;
 
     /// <summary>Where the data came from: "rom", "research", "profile" or "numeric".</summary>
     public string Source => _source;
@@ -124,19 +127,16 @@ public sealed class MercuryGameData
     }
 
     /// <summary>
-    /// Reads all data tables from the user's Mercury 1.1 ROM bytes. Rejects any other image with
+    /// Reads all data tables from an exact registered, readable Mercury ROM. Rejects any other image with
     /// <see cref="InvalidDataException"/>. Supply an imported <paramref name="text"/> codec for Chinese labels.
     /// </summary>
     public static MercuryGameData FromRom(byte[] rom, MercuryTextCodec? text = null)
     {
         ArgumentNullException.ThrowIfNull(rom);
-        if (rom.Length < MercuryRomLayout.RomSize)
-            throw new InvalidDataException($"ROM is {rom.Length} bytes; the supported Mercury 1.1 image is {MercuryRomLayout.RomSize} bytes.");
-
         string sha = ComputeSha256(rom);
-        if (!string.Equals(sha, MercuryRomLayout.ExpectedSha256, StringComparison.OrdinalIgnoreCase))
-            throw new InvalidDataException(
-                $"Unsupported ROM. Expected SHA-256 {MercuryRomLayout.ExpectedSha256} but got {sha}.");
+        MercuryRomVersion version = GetReadableVersion(sha, "ROM");
+        if (rom.Length != version.RomSize)
+            throw new InvalidDataException($"{version.Label} ROM is {rom.Length} bytes; expected exactly {version.RomSize} bytes.");
 
         MercuryTextCodec codec = text ?? MercuryTextCodec.Default();
         string[] abilityNames = ReadAbilityNames(rom, codec);
@@ -162,10 +162,11 @@ public sealed class MercuryGameData
             throw new FileNotFoundException($"Research manifest not found: {manifestPath}", manifestPath);
 
         string? romPath;
+        MercuryRomVersion version;
         using (JsonDocument manifest = JsonDocument.Parse(File.ReadAllText(manifestPath)))
         {
             string? sha = GetString(manifest.RootElement, "input", "sha256");
-            VerifyManifestSha(sha, manifestPath);
+            version = GetReadableVersion(sha, $"Manifest {manifestPath}");
             romPath = GetString(manifest.RootElement, "input", "path");
         }
 
@@ -174,7 +175,9 @@ public sealed class MercuryGameData
         {
             using JsonDocument spriteManifest = JsonDocument.Parse(File.ReadAllText(spriteManifestPath));
             string? sha = GetString(spriteManifest.RootElement, "input", "sha256");
-            VerifyManifestSha(sha, spriteManifestPath);
+            MercuryRomVersion spriteVersion = GetReadableVersion(sha, $"Manifest {spriteManifestPath}");
+            if (spriteVersion != version)
+                throw new InvalidDataException($"Sprite manifest is for {spriteVersion.Label}, but the research manifest is for {version.Label}.");
         }
 
         MercuryTextCodec codec = ReadResearchCodec(outDir);
@@ -182,7 +185,7 @@ public sealed class MercuryGameData
         Dictionary<(int Species, int Ability), int> aliases = ReadResearchAbilityAliases(outDir);
         int[] tmhmMoves = ReadResearchMoveList(outDir, "tmhm_moves.json");
         int[] tutorMoves = ReadResearchMoveList(outDir, "tutor_moves.json");
-        byte[]? rom = TryLoadVerifiedRom(romPath);
+        byte[]? rom = TryLoadVerifiedRom(romPath, version);
 
         List<MercurySpecies> species = ReadResearchSpecies(outDir, aliases, tmhmMoves, tutorMoves);
         List<MercuryMove> moves = ReadResearchMoves(outDir);
@@ -191,14 +194,17 @@ public sealed class MercuryGameData
         // experienceTables are never used as current-ROM values.
         uint[][] growth = rom is null ? [] : ReadGrowthTables(rom);
 
-        string sha256 = MercuryRomLayout.ExpectedSha256;
-        return new MercuryGameData(sha256, "research", species, moves, items, codec, abilityNames, growth, rom);
+        return new MercuryGameData(version.Sha256, "research", species, moves, items, codec, abilityNames, growth, rom);
     }
 
     /// <summary>Loads a locally saved profile from the given directory.</summary>
     public static MercuryGameData LoadProfile(string directory)
     {
         MercuryProfile profile = MercuryProfile.Load(directory);
+        bool numericProfile = profile.Source == "numeric" && string.IsNullOrEmpty(profile.RomSha256);
+        MercuryRomVersion? version = numericProfile ? null : GetReadableVersion(profile.RomSha256, "Profile");
+        if (numericProfile && !string.IsNullOrWhiteSpace(profile.RomPath))
+            throw new InvalidDataException("A numeric-only profile cannot declare a ROM cache without a ROM SHA-256.");
 
         MercuryTextCodec codec = profile.Charmap is { Count: > 0 }
             ? MercuryTextCodec.FromCharmapJson(JsonSerializer.Serialize(profile.Charmap))
@@ -210,7 +216,7 @@ public sealed class MercuryGameData
             string candidate = Path.IsPathRooted(profile.RomPath)
                 ? profile.RomPath
                 : Path.Combine(directory, profile.RomPath);
-            rom = TryLoadVerifiedRom(candidate);
+            rom = TryLoadVerifiedRom(candidate, version!);
         }
 
         // A profile written before the personal-fact fields existed (version < 2) has them zeroed.
@@ -284,7 +290,7 @@ public sealed class MercuryGameData
             ? profile.Growth
             : (rom is null ? [] : ReadGrowthTables(rom));
 
-        return new MercuryGameData(profile.RomSha256, "profile", species, moves, items, codec, profile.AbilityNames, growth, rom);
+        return new MercuryGameData(profile.RomSha256, numericProfile ? "numeric" : "profile", species, moves, items, codec, profile.AbilityNames, growth, rom);
     }
 
     /// <summary>Writes this data (including the imported charmap, if any) to <paramref name="directory"/>.</summary>
@@ -883,30 +889,36 @@ public sealed class MercuryGameData
         return nested;
     }
 
-    private static void VerifyManifestSha(string? sha, string path)
+    private static MercuryRomVersion GetReadableVersion(string? sha, string source)
     {
-        if (string.IsNullOrWhiteSpace(sha))
-            throw new InvalidDataException($"Manifest {path} does not declare a ROM sha256.");
-        if (!string.Equals(sha, MercuryRomLayout.ExpectedSha256, StringComparison.OrdinalIgnoreCase))
-            throw new InvalidDataException(
-                $"Manifest {path} was produced from a different ROM (sha256 {sha}); expected {MercuryRomLayout.ExpectedSha256}.");
+        if (!MercuryRomVersion.TryGetBySha256(sha, out var version))
+            throw new InvalidDataException($"{source} has an unknown ROM SHA-256 ({sha ?? "missing"}).");
+        if (!version.CanReadGameData)
+            throw new InvalidDataException($"{source} declares {version.Label}, whose game-data loading is not enabled.");
+        return version;
     }
 
-    private static byte[]? TryLoadVerifiedRom(string? path)
+    private static byte[]? TryLoadVerifiedRom(string? path, MercuryRomVersion expectedVersion)
     {
         if (string.IsNullOrWhiteSpace(path) || !File.Exists(path))
             return null;
+        byte[] rom;
         try
         {
-            byte[] rom = File.ReadAllBytes(path);
-            return string.Equals(ComputeSha256(rom), MercuryRomLayout.ExpectedSha256, StringComparison.OrdinalIgnoreCase)
-                ? rom
-                : null;
+            rom = File.ReadAllBytes(path);
         }
         catch (IOException)
         {
             return null;
         }
+
+        // An absent optional cache is allowed; a present cache for a different image is not.
+        MercuryRomVersion actualVersion = GetReadableVersion(ComputeSha256(rom), $"ROM cache {path}");
+        if (actualVersion != expectedVersion)
+            throw new InvalidDataException($"ROM cache is for {actualVersion.Label}, but the data declares {expectedVersion.Label}.");
+        if (rom.Length != actualVersion.RomSize)
+            throw new InvalidDataException($"{actualVersion.Label} ROM cache is {rom.Length} bytes; expected exactly {actualVersion.RomSize} bytes.");
+        return rom;
     }
 
     private static MercuryTextCodec ReadResearchCodec(string outDir)
