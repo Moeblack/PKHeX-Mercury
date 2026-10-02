@@ -1312,7 +1312,7 @@ public sealed partial class PKMEditor : UserControl, IMainEditor
         // Get Species dependent information
         if (FieldsLoaded)
             Entity.Species = (ushort)WinFormsUtil.GetIndex(CB_Species);
-        SpeciesIDTip.SetToolTip(CB_Species, Entity.Species.ToString("000"));
+        SpeciesIDTip.SetToolTip(CB_Species, Entity is MercuryPKM mercuryForm ? GetMercurySpeciesTooltip(mercuryForm) : Entity.Species.ToString("000"));
         SetAbilityList();
         SetForms();
         UpdateForm(sender, EventArgs.Empty);
