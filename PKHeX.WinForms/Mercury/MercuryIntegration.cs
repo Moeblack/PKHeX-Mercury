@@ -25,7 +25,6 @@ internal static class MercuryIntegration
     private static MercuryGameData? _data;
     private static MercurySaveReader? _reader;
     private static MercuryGameStringsFactory? _factory;
-    private static bool _defaultPackErrorShown;
 
     /// <summary>
     /// Raised after the profile/data has been replaced. The host reopens the active Mercury save (if any)
@@ -45,8 +44,8 @@ internal static class MercuryIntegration
     public static MercuryGameData? Data => _data;
 
     /// <summary>
-    /// Loads the default profile (if present) and registers the format hooks. Must run before startup
-    /// arguments are processed so that a Mercury save passed on the command line is recognized.
+    /// Loads the application's fixed Mercury 1.1 dataset before startup file arguments are processed.
+    /// User ROM/profile/charmap caches are not consulted.
     /// </summary>
     public static void Initialize()
     {
@@ -58,43 +57,28 @@ internal static class MercuryIntegration
             FileUtil.CustomEntityReader = TryReadEntity;
         }
 
-        TryLoadDefaultProfile();
-        TryApplyCachedCharmap();
-    }
-
-    /// <summary>Cached user-imported charmap (json / game_data.js payload), re-applied on every start.</summary>
-    private static string CharmapPath => Path.Combine(ProfileDirectory, "mercury-charmap.json");
-
-    private static void TryApplyCachedCharmap()
-    {
-        if (_data is null || _data.Source == "pack")
-            return;
         try
         {
-            if (!File.Exists(CharmapPath))
-                return;
-            var codec = MercuryTextCodec.FromCharmapJson(File.ReadAllText(CharmapPath));
-            SetData(_data.WithTextCodec(codec));
+            SetData(MercuryGameData.LoadBuiltIn());
         }
-        catch
+        catch (Exception error)
         {
-            // Ignore a corrupted charmap cache; the profile's own codec remains.
+            ClearData();
+            WinFormsUtil.Error(L("BuiltInLoadFailed", "Built-in Mercury 1.1 data could not be loaded. Mercury editing is disabled; retail editing remains available. Reinstall the application."), error);
         }
     }
 
-    private static void TryLoadDefaultProfile()
+    /// <summary>Legacy developer-import cache; never consulted by production startup.</summary>
+    private static string CharmapPath => Path.Combine(ProfileDirectory, "mercury-charmap.json");
+
+    private static void ClearData()
     {
-        var result = MercuryDefaultDataLoader.Load(DataPackDirectory, ProfileDirectory);
-        if (result.Data is not null)
-            SetData(result.Data);
-        if (result.PackError is null || _defaultPackErrorShown)
-            return;
-        _defaultPackErrorShown = true;
-        string fallback = result.Data is not null
-            ? L("DefaultPackFallback", "The previous profile was loaded instead.")
-            : L("DefaultPackUnavailable", "No fallback profile could be loaded; Mercury data is unavailable.");
-        Exception error = result.ProfileError is null ? result.PackError : new AggregateException(result.PackError, result.ProfileError);
-        WinFormsUtil.Error(L("DefaultPackFailed", "The default data pack could not be loaded."), fallback, error.Message);
+        MercuryEncounterContext.Clear();
+        _data = null;
+        MercuryPKM.DefaultGameData = null;
+        if (_reader is not null)
+            SaveUtil.CustomSaveReaders.Remove(_reader);
+        _reader = null;
     }
 
     private static void SetData(MercuryGameData data)
@@ -123,21 +107,8 @@ internal static class MercuryIntegration
     public static void AddMenuControls(ToolStripMenuItem tools)
     {
         var root = new ToolStripMenuItem { Name = "Menu_Mercury", Text = "Mercury" };
-        AddItem(root, "Menu_MercurySetup", "Mercury ROM/profile setup...", async (s, _) => await ConfigureFromRom(Owner(s), s as ToolStripMenuItem));
-        AddItem(root, "Menu_MercuryImportCharmap", "Import name charmap (JSON)...", (s, _) => ImportCharmap(Owner(s)));
-        AddItem(root, "Menu_MercuryDownloadCharmap", "Download public HOME charmap...", async (s, _) => await DownloadCharmapAsync(Owner(s)));
-        AddItem(root, "Menu_MercuryImportResearch", "Import research directory...", (s, _) => ImportResearch(Owner(s)));
-        var encounterEvidence = new ToolStripMenuItem
-        {
-            Name = "Menu_MercuryImportEncounterEvidence",
-            Text = L("EncounterEvidence.Menu", "Import encounter evidence (JSON)..."),
-        };
-        encounterEvidence.Click += (s, _) => ImportEncounterEvidence(Owner(s));
-        root.DropDownItems.Add(encounterEvidence);
-        root.DropDownOpening += (_, _) => encounterEvidence.Text = L("EncounterEvidence.Menu", "Import encounter evidence (JSON)...");
-        AddItem(root, "Menu_MercuryLoadProfile", "Load existing profile folder...", (s, _) => LoadProfileFolder(Owner(s)));
-        AddItem(root, "Menu_MercuryInstallPack", "Install data pack as default...",
-            async (s, _) => await MercuryDataPackSetup.InstallAsync(Owner(s), s as ToolStripMenuItem, DataPackDirectory, Publish));
+        AddItem(root, "Menu_MercuryBuiltInData", "Built-in Mercury 1.1 data", (_, _) =>
+            WinFormsUtil.Alert(L("BuiltInDataInfo", "All confirmed Mercury saves use the built-in Mercury 1.1 dataset. No ROM, charmap, profile installation or version selection is required. Data updates are supplied with application updates.")));
         tools.DropDownItems.Add(root);
     }
 
@@ -161,7 +132,7 @@ internal static class MercuryIntegration
         var data = _data;
         if (!MercuryEncounterContext.CanImport(data))
         {
-            WinFormsUtil.Error(L("EncounterEvidence.NeedData", "Encounter evidence supports only Mercury 1.1 with a verified ROM cache. Mercury 1.0 supports range and learning checks, but not this encounter evidence version."));
+            WinFormsUtil.Error(L("EncounterEvidence.NeedData", "Encounter evidence requires trusted Mercury 1.1 data (built-in application data or a verified ROM). Mercury 1.0 encounter evidence is not supported."));
             return;
         }
 

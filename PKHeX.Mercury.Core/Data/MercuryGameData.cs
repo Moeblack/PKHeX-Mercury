@@ -37,6 +37,7 @@ public sealed class MercuryGameData
     private readonly MercuryDataPackReader? _pack;
     private readonly string _romSha256;
     private readonly string _source;
+    private bool _trustedBuiltInData;
 
     private MercuryGameData(
         string romSha256,
@@ -71,7 +72,7 @@ public sealed class MercuryGameData
     /// <summary>The exact known ROM version, or null for numeric-only data.</summary>
     public MercuryRomVersion? RomVersion => MercuryRomVersion.TryGetBySha256(_romSha256, out var version) ? version : null;
 
-    /// <summary>Where the data came from: "rom", "research", "profile", "pack" or "numeric".</summary>
+    /// <summary>Where the data came from: "builtin", "rom", "research", "profile", "pack" or "numeric".</summary>
     public string Source => _source;
 
     public IReadOnlyList<MercurySpecies> Species => _species;
@@ -123,6 +124,15 @@ public sealed class MercuryGameData
 
     /// <summary>True only while the exact version-verified ROM bytes are held.</summary>
     public bool HasVerifiedRom => _rom is not null;
+
+    /// <summary>True only for the fixed application-embedded dataset, never an external profile's SHA declaration.</summary>
+    public bool IsTrustedBuiltInData => _trustedBuiltInData;
+
+    /// <summary>Data authority for numeric and learning checks, independent of image availability.</summary>
+    public bool HasTrustedGameData => HasVerifiedRom || IsTrustedBuiltInData;
+
+    /// <summary>Application-pinned encounter records; ordinary external profiles and packs do not supply defaults.</summary>
+    public MercuryEncounterEvidence? DefaultEncounterEvidence { get; private set; }
 
     /// <summary>True when either ROM bytes or a validated portable pack can supply sprite resources.</summary>
     public bool HasSpriteResources => _rom is not null || _pack is not null;
@@ -245,10 +255,6 @@ public sealed class MercuryGameData
         if (numericProfile && !string.IsNullOrWhiteSpace(profile.RomPath))
             throw new InvalidDataException("A numeric-only profile cannot declare a ROM cache without a ROM SHA-256.");
 
-        MercuryTextCodec codec = profile.Charmap is { Count: > 0 }
-            ? MercuryTextCodec.FromCharmapJson(JsonSerializer.Serialize(profile.Charmap))
-            : MercuryTextCodec.Default();
-
         byte[]? rom = null;
         if (!string.IsNullOrWhiteSpace(profile.RomPath))
         {
@@ -257,6 +263,17 @@ public sealed class MercuryGameData
                 : Path.Combine(directory, profile.RomPath);
             rom = TryLoadVerifiedRom(candidate, version!);
         }
+        return FromProfile(profile, rom);
+    }
+
+    private static MercuryGameData FromProfile(MercuryProfile profile, byte[]? rom)
+    {
+        bool numericProfile = profile.Source == "numeric" && string.IsNullOrEmpty(profile.RomSha256);
+        if (!numericProfile)
+            _ = GetReadableVersion(profile.RomSha256, "Profile");
+        MercuryTextCodec codec = profile.Charmap is { Count: > 0 }
+            ? MercuryTextCodec.FromCharmapJson(JsonSerializer.Serialize(profile.Charmap))
+            : MercuryTextCodec.Default();
 
         // A profile written before the personal-fact fields existed (version < 2) has them zeroed.
         // Fill them from the verified ROM instead of persisting invented zero values.
@@ -336,17 +353,31 @@ public sealed class MercuryGameData
     public static MercuryGameData LoadPack(string directory)
     {
         var pack = new MercuryDataPackReader(directory);
-        var profile = MercuryProfile.Load(pack.ProfileDirectory);
-        if (profile.RomPath is not null || File.Exists(Path.Combine(pack.ProfileDirectory, MercuryProfile.RomCacheFileName)))
-            throw new InvalidDataException("A portable data pack must not contain or reference a ROM cache.");
-        var data = LoadProfile(pack.ProfileDirectory);
+        return FromPack(pack, "pack");
+    }
+
+    /// <summary>Loads this application's pinned Mercury 1.1 data; no ROM, user profile, or network access.</summary>
+    public static MercuryGameData LoadBuiltIn()
+    {
+        var data = FromPack(MercuryBuiltInData.Reader, "builtin");
+        data._trustedBuiltInData = true;
+        data.DefaultEncounterEvidence = MercuryBuiltInData.Encounters;
+        return data;
+    }
+
+    private static MercuryGameData FromPack(MercuryDataPackReader pack, string source)
+    {
+        var profile = pack.ReadProfile();
+        if (profile.RomPath is not null)
+            throw new InvalidDataException("A portable data pack must not reference a ROM cache.");
+        var data = FromProfile(profile, null);
         var counts = pack.Manifest.Counts;
         if (data._rom is not null || !string.Equals(data.RomSha256, pack.SourceRomSha, StringComparison.OrdinalIgnoreCase) ||
             data.Species.Count != counts.Species || data.Moves.Count != counts.Moves || data.Items.Count != counts.Items ||
             data.AbilityNames.Count != counts.AbilityNames || data._growth.Length != counts.GrowthRows ||
             data._growth.Any(row => row.Length != counts.GrowthLevels) || pack.GetLocations().Count != counts.Locations)
             throw new InvalidDataException("The numeric profile does not match the validated data pack.");
-        return new MercuryGameData(data._romSha256, "pack", data._species, data._moves, data._items,
+        return new MercuryGameData(data._romSha256, source, data._species, data._moves, data._items,
             data._text, data._abilityNames, data._growth, null, pack);
     }
 

@@ -1,0 +1,52 @@
+{
+  "format": "PKHeX.Mercury.DataPack",
+  "version": 1,
+  "supportedRomSha256": "131b009df7ab252deff0d6a0518ab82f88e82c940ee68d50d31033a899f7e3dd",
+  "sourceRomLength": 33554432,
+  "source": {
+    "method": "local-verified-rom-extraction",
+    "dataSource": "rom",
+    "importedCharmap": true,
+    "notice": "Locally extracted from the user\u0027s verified ROM and imported charmap. No full ROM is included. File hashes verify integrity only, not redistribution permission or independent ROM-origin certification."
+  },
+  "counts": {
+    "species": 1554,
+    "moves": 1015,
+    "items": 750,
+    "abilityNames": 300,
+    "growthRows": 6,
+    "growthLevels": 101,
+    "locations": 256,
+    "sprites": {
+      "frontResources": 1554,
+      "itemResources": 750,
+      "typeResources": 256,
+      "ballResources": 28,
+      "frontAvailable": 1438,
+      "itemAvailable": 749,
+      "typeAvailable": 20,
+      "ballAvailable": 28,
+      "frontMissing": 116,
+      "itemMissing": 1,
+      "typeMissing": 236,
+      "ballMissing": 0
+    }
+  },
+  "files": [
+    {
+      "path": "mercury-profile.json",
+      "length": 4516739,
+      "sha256": "73625126540d6ef7cb1a1f2eb18038843cb38920b4ff9c991afef8a54de6f468"
+    },
+    {
+      "path": "locations.json",
+      "length": 21971,
+      "sha256": "13b2af05486188c8a0d643c09c83f80626d3602476421402087b3962f1adb95c"
+    },
+    {
+      "path": "sprites.zip",
+      "length": 2227832,
+      "sha256": "53ad964044ee16d357a4c1ea1cb142808353ac412f7c042baff9da8037cd8b59"
+    }
+  ]
+}

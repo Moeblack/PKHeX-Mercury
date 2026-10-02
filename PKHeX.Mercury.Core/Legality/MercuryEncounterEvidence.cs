@@ -45,7 +45,7 @@ public sealed class MercuryEncounterEvidence
     public string BroadcastGatingJson { get; }
     public string UnresolvedJson { get; }
     public IReadOnlyList<MercuryEncounterRecord> Records { get; }
-    public string Provenance => "外部遭遇JSON的ROM SHA来源声明匹配；未进行全表ROM字节复核。";
+    public string Provenance => "遭遇资料的ROM SHA来源声明匹配；未进行全表ROM字节复核。";
 
     internal MercuryEncounterEvidence(string sha, string path, string evidence, string broadcastEvidence,
         string broadcastGating, string unresolved, List<MercuryEncounterRecord> records)

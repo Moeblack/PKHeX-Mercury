@@ -11,4 +11,7 @@
   <ItemGroup>
     <ProjectReference Include="../PKHeX.Core/PKHeX.Core.csproj" />
   </ItemGroup>
+  <ItemGroup>
+    <EmbeddedResource Include="Resources/Mercury/1.1/*" LogicalName="PKHeX.Mercury.Core.BuiltIn.1.1.%(Filename)%(Extension)" />
+  </ItemGroup>
 </Project>

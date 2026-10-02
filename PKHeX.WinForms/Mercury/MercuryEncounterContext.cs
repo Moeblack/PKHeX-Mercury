@@ -13,7 +13,7 @@ internal static class MercuryEncounterContext
     private static Context? _current;
 
     public static bool CanImport(MercuryGameData? data)
-        => data is { HasSprites: true } && data.Source != "numeric"
+        => data is { HasTrustedGameData: true }
             && string.Equals(data.RomSha256, SupportedRomSha256, StringComparison.OrdinalIgnoreCase);
 
     public static MercuryEncounterEvidence? TryGet(MercuryGameData data)
@@ -21,7 +21,7 @@ internal static class MercuryEncounterContext
         var context = _current;
         return context is not null && ReferenceEquals(context.Data, data)
             && string.Equals(context.Evidence.RomSha256, data.RomSha256, StringComparison.OrdinalIgnoreCase)
-                ? context.Evidence : null;
+                ? context.Evidence : data.DefaultEncounterEvidence;
     }
 
     public static void SetContext(MercuryGameData data, MercuryEncounterEvidence evidence)
@@ -29,7 +29,7 @@ internal static class MercuryEncounterContext
         ArgumentNullException.ThrowIfNull(data);
         ArgumentNullException.ThrowIfNull(evidence);
         if (!CanImport(data) || !string.Equals(evidence.RomSha256, data.RomSha256, StringComparison.OrdinalIgnoreCase))
-            throw new InvalidDataException("Encounter evidence supports only the verified Mercury 1.1 ROM. Mercury 1.0 range and learning checks remain available without encounter evidence.");
+            throw new InvalidDataException("Encounter evidence requires trusted Mercury 1.1 data. Mercury 1.0 encounter evidence is not supported.");
         _current = new Context(data, evidence);
     }
 
@@ -39,7 +39,7 @@ internal static class MercuryEncounterContext
         if (string.IsNullOrWhiteSpace(path))
             return null;
         if (!CanImport(data))
-            throw new InvalidDataException("Encounter evidence requires verified Mercury 1.1 ROM data. Mercury 1.0 range and learning checks remain available without encounter evidence.");
+            throw new InvalidDataException("Encounter evidence requires trusted Mercury 1.1 data. Mercury 1.0 encounter evidence is not supported.");
         var evidence = MercuryEncounterEvidenceLoader.Load(path, data.RomSha256);
         SetContext(data, evidence);
         return evidence;

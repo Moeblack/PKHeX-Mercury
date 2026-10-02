@@ -67,7 +67,11 @@ internal sealed class MercuryProfile
         if (!File.Exists(path))
             throw new FileNotFoundException($"Mercury profile not found: {path}", path);
 
-        string json = File.ReadAllText(path);
+        return Parse(File.ReadAllText(path), path);
+    }
+
+    internal static MercuryProfile Parse(string json, string path)
+    {
         MercuryProfile? profile;
         try
         {

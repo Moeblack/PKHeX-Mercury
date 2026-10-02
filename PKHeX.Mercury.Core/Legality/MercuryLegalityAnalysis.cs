@@ -10,8 +10,8 @@ namespace PKHeX.Mercury.Core;
 /// </summary>
 public static class MercuryLegalityAnalysis
 {
-    private const string DataEvidence = "当前已加载资料；ROM缓存版本已验证（不表示资料全表已与ROM逐字段复核）";
-    private const string MissingData = "缺少有效的当前水银ROM资料：需要非numeric来源、已验证ROM缓存、支持的SHA及完整表ID形状；该项未知。";
+    private const string DataEvidence = "当前已加载可信版本资料（应用内置资料或经验证的ROM）；仅在已覆盖表范围内检查";
+    private const string MissingData = "缺少可信的水银版本资料或表ID形状不完整；该项未知。";
     private const string LearningGap = "蛋招式、进化前招式、事件及获取方式尚未闭合；未命中不能判为非法。";
 
     public static MercuryLegalityResult Analyze(MercuryPKM pk, MercuryEncounterEvidence? encounterEvidence = null)
@@ -24,13 +24,13 @@ public static class MercuryLegalityAnalysis
     public static MercuryLegalityResult Analyze(MercuryPokemon pk, MercuryGameData? data, MercuryEncounterEvidence? encounterEvidence = null)
     {
         ArgumentNullException.ThrowIfNull(pk);
+        encounterEvidence ??= data?.DefaultEncounterEvidence;
         var distribution = MercuryDistributionCatalog.Match(pk);
         var ordinarySourceRole = distribution is null ? MercuryCheckRole.Required : MercuryCheckRole.Diagnostic;
-        bool hasRom = data is { HasSprites: true } && data.Source != "numeric"
-            && data.RomVersion?.CanReadGameData == true;
-        bool speciesData = hasRom && HasShape(data!.Species, MercuryRomLayout.SpeciesCount, z => z.Id);
-        bool moveData = hasRom && HasShape(data!.Moves, MercuryRomLayout.MoveCount, z => z.Id);
-        bool itemData = hasRom && HasShape(data!.Items, MercuryRomLayout.ItemCount, z => z.Id);
+        bool hasData = data is { HasTrustedGameData: true } && data.RomVersion?.CanReadGameData == true;
+        bool speciesData = hasData && HasShape(data!.Species, MercuryRomLayout.SpeciesCount, z => z.Id);
+        bool moveData = hasData && HasShape(data!.Moves, MercuryRomLayout.MoveCount, z => z.Id);
+        bool itemData = hasData && HasShape(data!.Items, MercuryRomLayout.ItemCount, z => z.Id);
         var checks = new List<MercuryLegalityCheck>
         {
             CheckRange("species.range", pk.Species, MercuryRomLayout.SpeciesCount, speciesData,
@@ -62,10 +62,10 @@ public static class MercuryLegalityAnalysis
 
         string encounterReport;
         var fieldMatchStatus = MercuryCheckStatus.Unknown;
-        if (hasRom && data!.RomVersion != MercuryRomVersion.V1_1)
-            encounterReport = "当前ROM版本不支持现有遭遇证据（仅支持水银1.1）；范围与学习检查仍可使用当前版本ROM资料。" + MercuryEncounterMatcher.CoverageGap;
-        else if (encounterEvidence is not null && (!hasRom || !string.Equals(data!.RomSha256, encounterEvidence.RomSha256, StringComparison.OrdinalIgnoreCase)))
-            encounterReport = "未使用遭遇候选证据：缺少有效的当前ROM资料或其SHA与遭遇来源声明不一致。" + MercuryEncounterMatcher.CoverageGap;
+        if (hasData && data!.RomVersion != MercuryRomVersion.V1_1)
+            encounterReport = "当前资料版本不支持现有遭遇证据（仅支持水银1.1）；范围与学习检查仍可使用当前版本资料。" + MercuryEncounterMatcher.CoverageGap;
+        else if (encounterEvidence is not null && (!hasData || !string.Equals(data!.RomSha256, encounterEvidence.RomSha256, StringComparison.OrdinalIgnoreCase)))
+            encounterReport = "未使用遭遇候选证据：缺少可信的当前版本资料或其SHA与遭遇来源声明不一致。" + MercuryEncounterMatcher.CoverageGap;
         else
         {
             var match = MercuryEncounterMatcher.Match(pk.Species, pk.MetLocation, pk.MetLevel, encounterEvidence);

@@ -166,7 +166,13 @@ internal static class MercuryPackSpriteExporter
     /// <summary>Checks archive integrity and schema consistency, not provenance or authorization.</summary>
     internal static MercuryPackSpriteCounts Validate(string zipPath)
     {
-        using var archive = ZipFile.OpenRead(zipPath);
+        using var stream = File.OpenRead(zipPath);
+        return Validate(stream);
+    }
+
+    internal static MercuryPackSpriteCounts Validate(Stream input)
+    {
+        using var archive = new ZipArchive(input, ZipArchiveMode.Read, leaveOpen: true);
         var entries = new Dictionary<string, ZipArchiveEntry>(StringComparer.Ordinal);
         foreach (var entry in archive.Entries)
             Require(entries.TryAdd(entry.FullName, entry), "Duplicate ZIP entry.");

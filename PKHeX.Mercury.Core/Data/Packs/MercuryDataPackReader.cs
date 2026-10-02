@@ -4,6 +4,7 @@ using System.IO;
 using System.IO.Compression;
 using System.Linq;
 using System.Security.Cryptography;
+using System.Text;
 using System.Text.Json;
 
 namespace PKHeX.Mercury.Core;
@@ -30,6 +31,7 @@ public enum MercuryPackReadStatus
 public sealed class MercuryDataPackReader
 {
     private readonly byte[] _archive;
+    private readonly byte[] _profile;
     private readonly MercuryPackSpriteIndex _index;
     private readonly IReadOnlyList<MercuryPackLocation> _locations;
     private readonly Dictionary<string, byte[]> _payloads = new(StringComparer.Ordinal);
@@ -40,21 +42,27 @@ public sealed class MercuryDataPackReader
     public MercuryDataPackManifest Manifest { get; }
 
     public MercuryDataPackReader(string directory)
+        : this(Path.GetFullPath(directory), MercuryDataPackValidator.Validate(directory),
+            name => File.ReadAllBytes(Path.Combine(directory, name))) { }
+
+    internal MercuryDataPackReader(IReadOnlyDictionary<string, byte[]> files)
+        : this(string.Empty, MercuryDataPackValidator.Validate(files), name => (byte[])files[name].Clone()) { }
+
+    private MercuryDataPackReader(string directory, MercuryDataPackManifest manifest, Func<string, byte[]> read)
     {
-        ProfileDirectory = Path.GetFullPath(directory);
-        Manifest = MercuryDataPackValidator.Validate(ProfileDirectory);
+        ProfileDirectory = directory;
+        Manifest = manifest;
         SourceRomSha = Manifest.SupportedRomSha256;
-        // LoadProfile remains the numeric-data consumer; this reader does not modify its ROM gates.
-        // Reject the field even if null, just as the validator does, before exposing the directory.
-        using (var profile = JsonDocument.Parse(ReadVerified(MercuryDataPackManifest.ProfileFileName)))
+        _profile = ReadVerified(MercuryDataPackManifest.ProfileFileName, read);
+        using (var profile = JsonDocument.Parse(_profile))
         {
             if (profile.RootElement.EnumerateObject().Any(p => string.Equals(p.Name, "romPath", StringComparison.OrdinalIgnoreCase)))
                 throw new InvalidDataException("A data-pack profile must not contain romPath.");
         }
-        var locations = JsonSerializer.Deserialize<MercuryPackLocation[]>(ReadVerified(MercuryDataPackManifest.LocationsFileName), MercuryDataPackJson.Options)
+        var locations = JsonSerializer.Deserialize<MercuryPackLocation[]>(ReadVerified(MercuryDataPackManifest.LocationsFileName, read), MercuryDataPackJson.Options)
             ?? throw new InvalidDataException("Missing locations.");
         _locations = Array.AsReadOnly(locations);
-        _archive = ReadVerified(MercuryDataPackManifest.SpritesFileName);
+        _archive = ReadVerified(MercuryDataPackManifest.SpritesFileName, read);
         using var memory = new MemoryStream(_archive, writable: false);
         using var zip = new ZipArchive(memory, ZipArchiveMode.Read);
         using var stream = (zip.GetEntry("index.json") ?? throw new InvalidDataException("Missing sprite index.")).Open();
@@ -71,6 +79,8 @@ public sealed class MercuryDataPackReader
     }
 
     public IReadOnlyList<MercuryPackLocation> GetLocations() => _locations;
+
+    internal MercuryProfile ReadProfile() => MercuryProfile.Parse(Encoding.UTF8.GetString(_profile), "data-pack profile");
 
     /// <summary>Renders the raw resource without entity-specific PID postprocessing.</summary>
     public bool TryGetFront(int resourceIndex, int paletteIndex, bool shiny, MercurySpriteSelection selection,
@@ -187,10 +197,10 @@ public sealed class MercuryDataPackReader
         return true;
     }
 
-    private byte[] ReadVerified(string name)
+    private byte[] ReadVerified(string name, Func<string, byte[]> read)
     {
         var expected = Manifest.Files.Single(z => z.Path == name);
-        byte[] bytes = File.ReadAllBytes(Path.Combine(ProfileDirectory, name));
+        byte[] bytes = read(name);
         if (bytes.LongLength != expected.Length || !string.Equals(Convert.ToHexStringLower(SHA256.HashData(bytes)), expected.Sha256, StringComparison.OrdinalIgnoreCase))
             throw new InvalidDataException($"Pack file changed after validation: {name}");
         return bytes;
