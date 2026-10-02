@@ -2493,7 +2493,10 @@ public sealed partial class PKMEditor : UserControl, IMainEditor
             var game = source.Games;
             SetIfDifferentCount(game, CB_BattleVersion, force);
         }
-        SetIfDifferentCount(source.Species, CB_Species, force);
+        if (sav is MercurySaveFile)
+            SetIfDifferentCount(BuildMercurySpeciesList(source.Species), CB_Species, true);
+        else
+            SetIfDifferentCount(source.Species, CB_Species, force);
 
         // Set the Move ComboBoxes too.
         LegalMoveSource.ChangeMoveSource(source.Moves);

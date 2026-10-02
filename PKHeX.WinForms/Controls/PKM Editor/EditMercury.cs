@@ -51,6 +51,27 @@ public partial class PKMEditor
         return pk;
     }
 
+    /// <summary>Keep native autocomplete from replacing a selected internal species with a same-named entry.</summary>
+    private static IReadOnlyList<ComboItem> BuildMercurySpeciesList(IReadOnlyList<ComboItem> source)
+    {
+        var counts = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+        foreach (var item in source)
+        {
+            if (item.Value == 0 || item.Text.Length == 0)
+                continue;
+            counts.TryGetValue(item.Text, out int count);
+            counts[item.Text] = count + 1;
+        }
+
+        var result = new List<ComboItem>(source.Count);
+        foreach (var item in source)
+        {
+            bool duplicate = item.Value != 0 && item.Text.Length != 0 && counts[item.Text] > 1;
+            result.Add(duplicate ? new ComboItem($"{item.Text} [{item.Value}]", item.Value) : item);
+        }
+        return result;
+    }
+
     /// <summary>
     /// Builds the complete byte-indexed Mercury location list, including unknown values and slots
     /// with no valid name pointer. A missing name never removes the stored value from the dropdown.
