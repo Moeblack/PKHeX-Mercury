@@ -27,8 +27,13 @@
 | 13 | fix/mercury-issue-02-mechanisms | 0f7a9a6c44f051f20364ac882b93fc8e1e3ff0df | 8d5e17c08 | Add evidence-scoped Mercury form mechanism catalog |
 | 14 | fix/mercury-issue-02-mechanisms | 424073f11f79f0c726b1b9716abcd2ff60430220 | 0c5152d9a | Explain Mercury form mechanisms in native species tooltip |
 | 15 | fix/mercury-issue-11-forms | 4555bb71e | c1707657d | Add read-only Mercury sprite resource preview from native image menu |
+| 16 | fix/mercury-issue-06-legality | dc39b75d6 | 8cadd55be | Add Mercury encounter evidence parsing and unknown candidate matching |
+| 17 | fix/mercury-issue-06-legality | aea37dcbd | 6053ea852 | Wire Mercury encounter evidence import into native legality reports |
+| 18 | fix/mercury-issue-11-forms | 2f91811ba | 11d4a5187 | Allow explicit Mercury runtime resource selection in sprite preview |
 
-集成分支 HEAD（本次记录时）：`c1707657d`。十五次 cherry-pick 均已落地（第 7 次冲突逐块解决；第 15 次语言文件冲突按“键名集合不重叠且均纯新增”规则保留两侧全集），未重写其它代码。
+集成分支 HEAD（本次记录时）：`11d4a5187`。十八次 cherry-pick 均已落地（第 7、15 次冲突已按 Main 规则解决；第 17、18 次语言文件为纯新增、键集合不重叠，自动合并）。
+
+Issue 6：已能手动导入真实遭遇 JSON 并显示普通候选及独立动态摘要（`MercuryEncounterEvidence*.cs`、`MercuryEncounterMatcher.cs`、`MercuryEncounterContext.cs`）；不宣称完整获取合法性。Issue 11：新增 338 `null`/`false`/`true` 运行态只读预览，不写存档、不冒充从存档得知状态。二者均未发布。
 
 第 15 次语言文件冲突规则：`lang_en.txt` / `lang_zh-Hans.txt` 的 Issue 5 setup 键与 Issue 11 preview 键互不重叠、均为新增，故每个文件按 ours 全部键后接 theirs 全部键拼接，保留两侧、不删任何一侧。后续同类仅当确认键名集合不重叠且均纯新增时按此处理；出现相同键不同值必须回 Main，不盲目 both。
 
@@ -82,6 +87,7 @@ Issue 11 本次只完成帧/页 API：`MercurySpriteSelection(FrameIndex, Palett
 - 集成 Issue 1 UI 两次提交后构建：**已成功生成，0 警告，0 错误**（约 6.97 秒）。构建日志保存在本机 `artifacts/integration-build-issue1ui.log`。
 - 集成 Issue 5 提交后构建（覆盖 Issue 5 合并）：**已成功生成，0 警告，0 错误**（约 7.13 秒）。构建日志保存在本机 `artifacts/integration-build-issue5.log`。
 - 集成 Issue 2 + Issue 11 提交后构建（覆盖前次 Issue 2 与本次 Issue 11）：**已成功生成，0 警告，0 错误**（约 7.35 秒）。构建日志保存在本机 `artifacts/integration-build-issue2-11.log`。
+- 集成 Issue 6 两次 + Issue 11 运行态提交后构建：**已成功生成，0 警告，0 错误**（约 10.84 秒）。构建日志保存在本机 `artifacts/integration-build-issue6-11b.log`。
 
 ## Issue 3（729 号道具图像）：阻塞结论
 
