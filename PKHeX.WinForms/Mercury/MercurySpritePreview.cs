@@ -18,6 +18,7 @@ internal sealed class MercurySpritePreview : Form
     private readonly Label _trailing = new() { Name = "L_Trailing", AutoSize = true };
     private readonly Label _status = new() { Name = "L_Status", AutoSize = true };
     private MercurySpriteSelection _selection;
+    private bool? _runtimeState;
     private bool _initializing = true;
 
     public MercurySpritePreview(MercuryPKM snapshot)
@@ -33,11 +34,13 @@ internal sealed class MercurySpritePreview : Form
         MaximizeBox = false;
         MinimizeBox = false;
 
-        var layout = new TableLayoutPanel { Dock = DockStyle.Fill, Padding = new Padding(12), ColumnCount = 2, RowCount = 9 };
+        bool showRuntime = snapshot.Species == 0x338;
+        int pictureRow = showRuntime ? 4 : 3;
+        var layout = new TableLayoutPanel { Dock = DockStyle.Fill, Padding = new Padding(12), ColumnCount = 2, RowCount = pictureRow + 6 };
         layout.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
         layout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
         for (int i = 0; i < layout.RowCount; i++)
-            layout.RowStyles.Add(new RowStyle(i == 3 ? SizeType.Percent : SizeType.AutoSize, i == 3 ? 100 : 0));
+            layout.RowStyles.Add(new RowStyle(i == pictureRow ? SizeType.Percent : SizeType.AutoSize, i == pictureRow ? 100 : 0));
         Controls.Add(layout);
 
         uint pid = snapshot.PID;
@@ -55,22 +58,35 @@ internal sealed class MercurySpritePreview : Form
         layout.Controls.Add(_frames, 1, 1);
         layout.Controls.Add(new Label { AutoSize = true, Text = L("Page", "Palette page") }, 0, 2);
         layout.Controls.Add(_pages, 1, 2);
-        AddWide(layout, _picture, 3);
-        AddWide(layout, _counts, 4);
-        AddWide(layout, _trailing, 5);
-        AddWide(layout, _status, 6);
+        if (showRuntime)
+        {
+            var states = new ComboBox { Name = "CB_RuntimeState", Dock = DockStyle.Fill, DropDownStyle = ComboBoxStyle.DropDownList, DisplayMember = nameof(RuntimeStateOption.Text) };
+            states.Items.AddRange(new object[]
+            {
+                new RuntimeStateOption(L("RuntimeDefault", "Unspecified (default resource)"), null),
+                new RuntimeStateOption(L("RuntimeZero", "State bit 0"), false),
+                new RuntimeStateOption(L("RuntimeOne", "State bit 1"), true),
+            });
+            states.SelectedIndex = 0;
+            states.SelectedIndexChanged += RuntimeStateChanged;
+            layout.Controls.Add(new Label { AutoSize = true, Text = L("Runtime", "Runtime image preview") }, 0, 3);
+            layout.Controls.Add(states, 1, 3);
+        }
+        AddWide(layout, _picture, pictureRow);
+        AddWide(layout, _counts, pictureRow + 1);
+        AddWide(layout, _trailing, pictureRow + 2);
+        AddWide(layout, _status, pictureRow + 3);
         AddWide(layout, new Label
         {
             Name = "L_Note", AutoSize = true, MaximumSize = new Size(460, 0),
             Text = L("Note", "Independent resource frames and palettes; not game animation or saved forms."),
-        }, 7);
+        }, pictureRow + 4);
         var close = new Button { AutoSize = true, Text = L("Close", "Close"), DialogResult = DialogResult.Cancel, Anchor = AnchorStyles.Right };
-        AddWide(layout, close, 8);
+        AddWide(layout, close, pictureRow + 5);
         CancelButton = close;
         _frames.SelectedIndexChanged += SelectionChanged;
         _pages.SelectedIndexChanged += SelectionChanged;
-        LoadResources();
-        _initializing = false;
+        ReloadResources();
     }
 
     private static void AddWide(TableLayoutPanel layout, Control control, int row)
@@ -82,6 +98,35 @@ internal sealed class MercurySpritePreview : Form
     private static string L(string key, string fallback)
         => WinFormsTranslator.TranslateText($"Mercury.SpritePreview.{key}", fallback, Main.CurrentLanguage);
 
+    private sealed record RuntimeStateOption(string Text, bool? Value);
+
+    private void RuntimeStateChanged(object? sender, EventArgs e)
+    {
+        if (_initializing || sender is not ComboBox { SelectedItem: RuntimeStateOption option })
+            return;
+        _runtimeState = option.Value;
+        ReloadResources();
+    }
+
+    private void ReloadResources()
+    {
+        _initializing = true;
+        try
+        {
+            _selection = default;
+            _frames.Items.Clear();
+            _pages.Items.Clear();
+            _frames.Enabled = _pages.Enabled = false;
+            _counts.Text = _trailing.Text = _status.Text = string.Empty;
+            ReplaceImage(null);
+            LoadResources();
+        }
+        finally
+        {
+            _initializing = false;
+        }
+    }
+
     private void LoadResources()
     {
         if (!_snapshot.GameData.HasSprites)
@@ -91,7 +136,7 @@ internal sealed class MercurySpritePreview : Form
         }
 
         var rgba = _snapshot.GameData.GetSpriteRgba(_snapshot.Species, _snapshot.PID, _snapshot.ID32,
-            default, out int width, out int height, out var metadata);
+            default, out int width, out int height, out var metadata, runtimeState: _runtimeState);
         if (rgba is null)
         {
             ShowUnavailable();
@@ -120,7 +165,7 @@ internal sealed class MercurySpritePreview : Form
             return;
         _selection = new MercurySpriteSelection(_frames.SelectedIndex, _pages.SelectedIndex);
         var rgba = _snapshot.GameData.GetSpriteRgba(_snapshot.Species, _snapshot.PID, _snapshot.ID32,
-            _selection, out int width, out int height, out _);
+            _selection, out int width, out int height, out _, runtimeState: _runtimeState);
         if (rgba is null)
         {
             ShowUnavailable();

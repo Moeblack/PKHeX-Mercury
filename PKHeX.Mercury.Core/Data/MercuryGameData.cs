@@ -525,10 +525,11 @@ public sealed class MercuryGameData
     /// The optional palette table index overrides species-specific palette resource selection
     /// (by default species 201 forces palette resource 201); the palette page is not affected.
     /// An explicit caller-supplied <paramref name="paletteIndex"/> still takes priority.
+    /// The optional runtime state is passed to the resource mapper; null preserves the default resource.
     /// On failure, dimensions are zero and metadata is default. No animation pairing is implied.
     /// </summary>
     public byte[]? GetSpriteRgba(int species, uint pid, uint trainerId, MercurySpriteSelection selection,
-        out int width, out int height, out MercurySpriteMetadata metadata, int? paletteIndex = null)
+        out int width, out int height, out MercurySpriteMetadata metadata, int? paletteIndex = null, bool? runtimeState = null)
     {
         width = 0;
         height = 0;
@@ -536,7 +537,7 @@ public sealed class MercuryGameData
         if (_rom is null)
             return null;
 
-        int index = GetSpriteIndex(species, pid);
+        int index = GetSpriteIndex(species, pid, runtimeState);
         int resolvedPaletteIndex = paletteIndex ?? (species == 201 ? 201 : index);
         if (!MercurySpriteLoader.TryRender(_rom, index, pid, trainerId, selection, out byte[] rgba, out metadata, resolvedPaletteIndex))
             return null;
