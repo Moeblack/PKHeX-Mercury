@@ -23,8 +23,13 @@
 | 9 | fix/mercury-issue-08-type | 0cfb69c40122b7a2ed4b9cbae06afcb38f8991ea | 3f9044f12 | Preserve unknown boxed Mercury type bits through the PKM bridge |
 | 10 | mercury（Issue 1 UI） | d6129eb97c4d0f0bccb58ee2ee7f0d1c2c5b9e0f | 727e59ca7 | Synchronize Mercury Unown PID fields before native preview |
 | 11 | mercury（Issue 1 UI） | 9372255e7 | 410144774 | Disambiguate duplicate Mercury species labels without changing IDs |
+| 12 | fix/mercury-issue-05-provisioning | cb29075b6b2094f8a969901fed041b3f9be8d16f | 9546efb96 | fix(mercury): provision ROM profile with automatic charmap setup |
 
-集成分支 pick HEAD：`41014477464311b8ba7f05990568763a89a87edc`。十一次 cherry-pick 均已落地（第 7 次冲突按 Main 单逐块解决；第 8、9、10、11 次自动合并），未选整文件 ours/theirs，未重写其它代码。
+集成分支 pick HEAD：`9546efb96`。十二次 cherry-pick 均已落地（第 7 次冲突按 Main 单逐块解决；其余自动合并），未选整文件 ours/theirs，未重写其它代码。
+
+Issue 5 本次只并入“一步 ROM 配置 + 自动字表 + 无 profile 离线缓存”（新增 `MercuryDataSetup.cs`）；**未实现无 ROM 默认部署，仍标部分实现**，不能以 Issue 1/8 的验证结果证明新增 Issue 5 行为。保留了 `MercuryIntegration` 的空能力修复（`Math.Max(1, data.AbilityNames.Count)`）与后续 Issue 11 独立语言键的接入点（`GameStrings.CreateMercury` 签名未动）。
+
+Issue 1、Issue 8 已通过限定联动验证：分别 2314 项与 4000 断言，验证 HEAD `6ead5dee`（含 201/434 同名选择与类型清零/保留联动）。此处仅记录已核对结果，未据此声称其它行为。
 
 Issue 1 UI 两次 pick 包含 Main 已逐项审定的方案：`UpdateForm` 显式 `Update_ID`、`Update_ID` 先同步后预览、只在水银 `ComboItem` 显示层按 `OrdinalIgnoreCase` 对重复名追加 `Value` 后缀。保留了 Issue 8 的 `ConfigureMercuryTypes`/`LoadMercuryTypes`/`SaveMercuryTypes`（`EditMercuryTypes.cs`）及桥接侧车。
 
@@ -68,6 +73,7 @@ Issue 11 本次只完成帧/页 API：`MercurySpriteSelection(FrameIndex, Palett
 - 集成 Issue 1 核心提交（Unown/PID，含冲突解决）后再次构建：**已成功生成，0 警告，0 错误**（约 7.95 秒）。构建日志保存在本机 `artifacts/integration-build-core.log`。
 - 集成 Issue 8 两次提交后构建：**已成功生成，0 警告，0 错误**（约 10.72 秒）。构建日志保存在本机 `artifacts/integration-build-issue8.log`。
 - 集成 Issue 1 UI 两次提交后构建：**已成功生成，0 警告，0 错误**（约 6.97 秒）。构建日志保存在本机 `artifacts/integration-build-issue1ui.log`。
+- 集成 Issue 5 提交后构建（覆盖 Issue 5 合并）：**已成功生成，0 警告，0 错误**（约 7.13 秒）。构建日志保存在本机 `artifacts/integration-build-issue5.log`。
 
 ## 事实补记（Issue 5/9，未完成）
 
