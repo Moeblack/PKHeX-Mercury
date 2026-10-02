@@ -13,14 +13,14 @@ public static class MercuryLegalityAnalysis
     private const string MissingData = "缺少有效的当前水银ROM资料：需要非numeric来源、已验证ROM缓存、支持的SHA及完整表ID形状；该项未知。";
     private const string LearningGap = "蛋招式、进化前招式、事件及获取方式尚未闭合；未命中不能判为非法。";
 
-    public static MercuryLegalityResult Analyze(MercuryPKM pk)
+    public static MercuryLegalityResult Analyze(MercuryPKM pk, MercuryEncounterEvidence? encounterEvidence = null)
     {
         ArgumentNullException.ThrowIfNull(pk);
-        return Analyze(pk.ToMercuryPokemon(), pk.GameData);
+        return Analyze(pk.ToMercuryPokemon(), pk.GameData, encounterEvidence);
     }
 
     /// <summary>Checks native stored identifiers against the already loaded data; null data stays unknown.</summary>
-    public static MercuryLegalityResult Analyze(MercuryPokemon pk, MercuryGameData? data)
+    public static MercuryLegalityResult Analyze(MercuryPokemon pk, MercuryGameData? data, MercuryEncounterEvidence? encounterEvidence = null)
     {
         ArgumentNullException.ThrowIfNull(pk);
         bool hasRom = data is { HasSprites: true } && data.Source != "numeric"
@@ -46,10 +46,12 @@ public static class MercuryLegalityAnalysis
             checks.Add(CheckLearning($"{code}.known-learning", move, species, speciesData && moveData));
         }
 
-        checks.Add(new MercuryLegalityCheck("encounter.source", MercuryCheckStatus.Unknown,
-            "现有研究的6624个遭遇槽只能证明物理表存在；缺少完整事件、进化、等级变化及获取链。"
-            + "训练家敌方队伍不是玩家合法来源；动态时段、群聚及广播条件不能从当前存档猜测。"
-            + "尚未建立单只记录的来源校验，未命中不得判为非法。"));
+        string encounterReport;
+        if (encounterEvidence is not null && (!hasRom || !string.Equals(data!.RomSha256, encounterEvidence.RomSha256, StringComparison.OrdinalIgnoreCase)))
+            encounterReport = "未使用遭遇候选证据：缺少有效的当前ROM资料或其SHA与遭遇来源声明不一致。" + MercuryEncounterMatcher.CoverageGap;
+        else
+            encounterReport = MercuryEncounterMatcher.Match(pk.Species, pk.MetLocation, pk.MetLevel, encounterEvidence).Evidence;
+        checks.Add(new MercuryLegalityCheck("encounter.source", MercuryCheckStatus.Unknown, encounterReport));
         return new MercuryLegalityResult(checks);
     }
 
