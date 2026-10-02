@@ -43,8 +43,13 @@
 | 29 | fix/mercury-issue-06-fieldmatch | 4b5b8f1036120b48b9408faea3d4a30e13d4ee79 | 3c625819e | Separate Mercury encounter field matches from source coverage |
 | 30 | fix/mercury-issue-02-directory | d720625b12922b05245ab773deb4a01457209e8e | f8628e63e | Expand proven Mercury transitions and clarify temporary species writes |
 | 31 | fix/mercury-issue-11-pid | 0e978ab43 | 0e5b48cef | Apply verified Mercury PID spots to indexed entity sprite buffers |
+| 32 | fix/mercury-issue-06-method1 | 0721bb7da5ea6d7e68c633ada9f8e4ae783fb383 | 576e586d6 | Reuse native Method1 correlation for Mercury diagnostics |
 
-集成分支 pick HEAD（本次记录时）：`0e5b48cef`。三十一次 cherry-pick 均已落地：冲突发生于第 7、15、23、26 次并按规则解决；其余无冲突。
+集成分支 pick HEAD（本次记录时）：`576e586d6`。三十二次 cherry-pick 均已落地：冲突发生于第 7、15、23、26 次并按规则解决；其余无冲突。
+
+第 32 次增量（Issue 6 仍部分）：按六 IV 低 30 位调用原生 `MethodFinder`；`Pass` **仅表示数学相关性**，未匹配为 `Unknown`、空槽为 `Unknown`，原有完整来源仍为 `Unknown`。映射：`PKHeX.Mercury.Core/Legality/MercuryLegalityAnalysis.cs`（24–84 区域）调用上游 MethodFinder；测试 `Tests/PKHeX.Core.Tests/Mercury/MercuryMethod1Tests.cs`。**不将此视为完整规则完成**。验证：solution 构建 0 警告 0 错误（约 7.55 秒，日志 `artifacts/integration-build-method1.log`）；`MercuryMethod1Tests` **25/25 通过、0 跳过**（不需 ROM，日志 `artifacts/integration-mercury-method1-tests.log`）。
+
+未 pick 全量形态 `cb624854`：待 mechanisms 补独立版本 gate 提交后与之一并等批准。
 
 Issue 2（暂不结项）：已证目录 16 条关系（**是已证目录，不是全部转换清单**）并修正临时恢复写入，未知分类保留。Issue 11 已完成（按“编辑器正面图资源/当前实体预览”标准）：完整帧/页、338 null/false/true、内部资源索引 0x0134 的 PID 斑点后处理（ROM/资料包实体路径）均覆盖；明确不复刻战斗动画、不提供背面查看器、未知动画选择不瞎自动配对（非新增任务）。`TryGetFront` 原始语义保留。
 
@@ -124,6 +129,7 @@ Issue 11 本次只完成帧/页 API：`MercurySpriteSelection(FrameIndex, Palett
 - 集成共享学习表提交后构建：**已成功生成，0 警告，0 错误**（约 6.88 秒）。日志 `artifacts/integration-build-shared-learnset.log`。
 - 集成字段匹配提交后构建：**已成功生成，0 警告，0 错误**（约 7.43 秒）。日志 `artifacts/integration-build-field-match.log`。
 - 集成 Issue 2 目录 16 关系 + Issue 11 PID spots 提交后构建：**已成功生成，0 警告，0 错误**（约 9.33 秒）。日志 `artifacts/integration-build-issue2dir-issue11pid.log`。
+- 集成 Method1 诊断提交后构建：**已成功生成，0 警告，0 错误**（约 7.55 秒）。日志 `artifacts/integration-build-method1.log`。
 
 ## Issue 3（729 号道具图像）：阻塞结论
 
