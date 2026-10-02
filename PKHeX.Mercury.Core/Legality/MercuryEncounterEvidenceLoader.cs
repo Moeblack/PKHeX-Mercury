@@ -14,7 +14,7 @@ public static class MercuryEncounterEvidenceLoader
     public static MercuryEncounterEvidence Parse(string json, string expectedRomSha256, string sourcePath = "external JSON")
     {
         if (!string.Equals(expectedRomSha256, MercuryRomLayout.ExpectedSha256, StringComparison.OrdinalIgnoreCase))
-            throw new InvalidDataException("Encounter evidence requires the supported Mercury ROM SHA declaration.");
+            throw new InvalidDataException("Encounter evidence requires the verified Mercury 1.1 ROM SHA declaration; Mercury 1.0 encounter evidence is not supported.");
         try
         {
             using var document = JsonDocument.Parse(json);

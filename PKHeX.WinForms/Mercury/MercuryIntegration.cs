@@ -156,7 +156,7 @@ internal static class MercuryIntegration
         var data = _data;
         if (!MercuryEncounterContext.CanImport(data))
         {
-            WinFormsUtil.Error(L("EncounterEvidence.NeedData", "Configure the supported Mercury ROM/profile with a verified ROM cache before importing encounter evidence."));
+            WinFormsUtil.Error(L("EncounterEvidence.NeedData", "Encounter evidence supports only Mercury 1.1 with a verified ROM cache. Mercury 1.0 supports range and learning checks, but not this encounter evidence version."));
             return;
         }
 
@@ -205,7 +205,7 @@ internal static class MercuryIntegration
         using var ofd = new OpenFileDialog
         {
             Filter = L("RomFilter", "GBA ROM (*.gba)|*.gba|All files (*.*)|*.*"),
-            Title = L("SetupSelectRom", "Select the Mercury ROM (downloads the public HOME charmap if needed)"),
+            Title = L("SetupSelectRom", "Select a supported Mercury 1.0 or 1.1 ROM (downloads the public HOME charmap if needed)"),
         };
         if (ofd.ShowDialog(owner) != DialogResult.OK)
             return;
@@ -239,7 +239,7 @@ internal static class MercuryIntegration
         catch (Exception e)
         {
             progress.Hide();
-            WinFormsUtil.Error(L("SetupFailed", "Setup failed. See the error below. For charmap download failures, use Import name charmap, then select your ROM again. The previously active data has not been replaced."), e);
+            WinFormsUtil.Error(L("SetupFailed", "Setup failed. Only the verified Mercury 1.0 and 1.1 ROM builds are supported. See the error below. For charmap download failures, import a name charmap, then select your ROM again. The previously active data has not been replaced."), e);
             return;
         }
         finally

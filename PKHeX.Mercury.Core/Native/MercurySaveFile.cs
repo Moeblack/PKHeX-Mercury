@@ -103,7 +103,7 @@ public sealed class MercurySaveFile : SaveFile
 
     // --- metadata ---------------------------------------------------------
 
-    protected override string ShortSummary => "Mercury 1.1 save";
+    protected override string ShortSummary => $"{GameData.RomVersion?.Label ?? "Mercury"} save";
     public override string Extension => "sav";
     public override IReadOnlyList<string> PKMExtensions => ["mercurypkm", "m3box", "m3pk", "m3party", "m3stored"];
     public override GameVersion Version { get => GameVersion.FR; set { } }

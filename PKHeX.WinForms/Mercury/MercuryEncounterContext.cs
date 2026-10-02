@@ -29,7 +29,7 @@ internal static class MercuryEncounterContext
         ArgumentNullException.ThrowIfNull(data);
         ArgumentNullException.ThrowIfNull(evidence);
         if (!CanImport(data) || !string.Equals(evidence.RomSha256, data.RomSha256, StringComparison.OrdinalIgnoreCase))
-            throw new InvalidDataException("Encounter evidence is not compatible with the current supported Mercury data.");
+            throw new InvalidDataException("Encounter evidence supports only the verified Mercury 1.1 ROM. Mercury 1.0 range and learning checks remain available without encounter evidence.");
         _current = new Context(data, evidence);
     }
 
@@ -39,7 +39,7 @@ internal static class MercuryEncounterContext
         if (string.IsNullOrWhiteSpace(path))
             return null;
         if (!CanImport(data))
-            throw new InvalidDataException("Configure supported Mercury ROM data before importing encounter evidence.");
+            throw new InvalidDataException("Encounter evidence requires verified Mercury 1.1 ROM data. Mercury 1.0 range and learning checks remain available without encounter evidence.");
         var evidence = MercuryEncounterEvidenceLoader.Load(path, data.RomSha256);
         SetContext(data, evidence);
         return evidence;

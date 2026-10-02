@@ -36,8 +36,8 @@ public enum MercurySaveRecognitionState
 /// checksum-valid <see cref="SAV3"/> interpretation for the retail side.
 /// <see cref="MercuryGameData"/> availability is deliberately not part of the classification: it only decides
 /// whether an editable Mercury object can be built for a candidate (see <see cref="MercuryCandidate"/>).
-/// A <see cref="MercuryGameData"/> whose <see cref="MercuryGameData.RomSha256"/> does not match the supported
-/// build (including <see cref="MercuryGameData.NumericOnly"/>) can still yield a Mercury candidate state, but
+/// A <see cref="MercuryGameData"/> whose <see cref="MercuryGameData.RomVersion"/> does not authorize save editing
+/// (including <see cref="MercuryGameData.NumericOnly"/>) can still yield a Mercury candidate state, but
 /// cannot be turned into an editable Mercury object here.
 /// </para>
 /// </summary>
@@ -82,7 +82,7 @@ public sealed class MercurySaveRecognition
 
     /// <summary>
     /// Classifies the input bytes without claiming ownership. Optionally builds an editable Mercury object when
-    /// <paramref name="gameData"/> matches the supported ROM; classification never depends on that data.
+    /// <paramref name="gameData"/> identifies a ROM version that authorizes save editing; classification never depends on that data.
     /// </summary>
     public static MercurySaveRecognition Analyze(ReadOnlySpan<byte> data, MercuryGameData? gameData = null, string? path = null)
     {
@@ -114,14 +114,14 @@ public sealed class MercurySaveRecognition
         }
 
         // Data availability is separate from classification. Only build an editable object when the caller
-        // supplied game data that matches the supported ROM; NumericOnly / mismatched data cannot do this.
+        // supplied game data whose ROM descriptor permits save editing; NumericOnly / unknown data cannot do this.
         MercurySaveFile? mercury = null;
         if (mercuryAccepted)
         {
             if (gameData is null)
                 evidence.Add("Mercury candidate detected; no game data supplied, so no editable Mercury object was built.");
-            else if (!string.Equals(gameData.RomSha256, MercuryRomLayout.ExpectedSha256, StringComparison.OrdinalIgnoreCase))
-                evidence.Add("Mercury candidate detected; supplied game data does not match the supported ROM, so no editable Mercury object was built.");
+            else if (gameData.RomVersion?.CanEditSave != true)
+                evidence.Add("Mercury candidate detected; supplied game data does not identify a ROM version supporting save editing, so no editable Mercury object was built.");
             else
             {
                 try

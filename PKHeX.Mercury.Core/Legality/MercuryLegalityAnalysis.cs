@@ -24,7 +24,7 @@ public static class MercuryLegalityAnalysis
     {
         ArgumentNullException.ThrowIfNull(pk);
         bool hasRom = data is { HasSprites: true } && data.Source != "numeric"
-            && string.Equals(data.RomSha256, MercuryRomLayout.ExpectedSha256, StringComparison.OrdinalIgnoreCase);
+            && data.RomVersion?.CanReadGameData == true;
         bool speciesData = hasRom && HasShape(data!.Species, MercuryRomLayout.SpeciesCount, z => z.Id);
         bool moveData = hasRom && HasShape(data!.Moves, MercuryRomLayout.MoveCount, z => z.Id);
         bool itemData = hasRom && HasShape(data!.Items, MercuryRomLayout.ItemCount, z => z.Id);
@@ -47,7 +47,9 @@ public static class MercuryLegalityAnalysis
         }
 
         string encounterReport;
-        if (encounterEvidence is not null && (!hasRom || !string.Equals(data!.RomSha256, encounterEvidence.RomSha256, StringComparison.OrdinalIgnoreCase)))
+        if (hasRom && data!.RomVersion != MercuryRomVersion.V1_1)
+            encounterReport = "当前ROM版本不支持现有遭遇证据（仅支持水银1.1）；范围与学习检查仍可使用当前版本ROM资料。" + MercuryEncounterMatcher.CoverageGap;
+        else if (encounterEvidence is not null && (!hasRom || !string.Equals(data!.RomSha256, encounterEvidence.RomSha256, StringComparison.OrdinalIgnoreCase)))
             encounterReport = "未使用遭遇候选证据：缺少有效的当前ROM资料或其SHA与遭遇来源声明不一致。" + MercuryEncounterMatcher.CoverageGap;
         else
             encounterReport = MercuryEncounterMatcher.Match(pk.Species, pk.MetLocation, pk.MetLevel, encounterEvidence).Evidence;
