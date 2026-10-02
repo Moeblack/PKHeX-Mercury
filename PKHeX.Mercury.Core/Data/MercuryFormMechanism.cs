@@ -62,7 +62,7 @@ public sealed class MercuryFormMechanism
 {
     internal MercuryFormMechanism(ushort species, MercuryFormMechanismKind kind, string selectionSource,
         MercuryFormContext requiredContext, uint[] evidenceAddresses, MercuryFormOption[] options,
-        MercurySpeciesTransition[]? transitions = null)
+        MercurySpeciesTransition[]? transitions = null, ushort? coveredReverseFinalTarget = null)
     {
         BaseSpecies = species;
         Kind = kind;
@@ -71,8 +71,10 @@ public sealed class MercuryFormMechanism
         EvidenceAddresses = Array.AsReadOnly(evidenceAddresses);
         Options = Array.AsReadOnly(options);
         Transitions = Array.AsReadOnly(transitions ?? []);
+        CoveredReverseFinalTarget = coveredReverseFinalTarget;
     }
 
+    /// <summary>The queried internal species ID, not a canonical or globally unique form-group base.</summary>
     public ushort BaseSpecies { get; }
     public MercuryFormMechanismKind Kind { get; }
     public string SelectionSource { get; }
@@ -82,6 +84,9 @@ public sealed class MercuryFormMechanism
 
     /// <summary>Proven outgoing species transitions; not writable Form options.</summary>
     public IReadOnlyList<MercurySpeciesTransition> Transitions { get; }
+
+    /// <summary>Last write on the specifically covered ordered reverse path, not a globally unique base species.</summary>
+    public ushort? CoveredReverseFinalTarget { get; }
 
     /// <summary>
     /// Only the existing species-201 Form/PID editor is proven. This does not imply a separate stored form byte.

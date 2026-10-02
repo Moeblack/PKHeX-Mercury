@@ -10,12 +10,13 @@ namespace PKHeX.Mercury.Core;
 public sealed record MercurySpeciesTransition
 {
     internal MercurySpeciesTransition(ushort source, ushort target, ushort methodRaw, ushort paramRaw,
-        string condition, ushort? reverseTarget, uint[] evidence)
+        string condition, ushort? reverseTarget, uint[] evidence, ushort auxRaw = 0)
     {
         Source = source;
         Target = target;
         MethodRaw = methodRaw;
         ParamRaw = paramRaw;
+        AuxRaw = auxRaw;
         Condition = condition;
         ReverseTarget = reverseTarget;
         Evidence = Array.AsReadOnly(evidence);
@@ -25,11 +26,12 @@ public sealed record MercurySpeciesTransition
     public ushort Target { get; }
     public ushort MethodRaw { get; }
     public ushort ParamRaw { get; }
+    public ushort AuxRaw { get; }
 
     /// <summary>Proven conditions and outstanding lifecycle limits; this is not a predicate for editing.</summary>
     public string Condition { get; }
 
-    /// <summary>Proven fallback target of a forward conversion; null for fallback records, whose re-entry needs separate conditions.</summary>
+    /// <summary>Proven unambiguous fallback target of a forward conversion; null for multiple-target or fallback records.</summary>
     public ushort? ReverseTarget { get; }
 
     /// <summary>ROM addresses for the records, consumers, species writes and normalization-before-copy lifecycle.</summary>

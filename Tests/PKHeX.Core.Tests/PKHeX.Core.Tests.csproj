@@ -21,6 +21,10 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Compile Include="..\..\PKHeX.WinForms\Controls\PKM Editor\EditMercuryForms.cs" Link="Mercury\LinkedSources\EditMercuryForms.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
     <EmbeddedResource Update="Properties\Resources.resx">
       <Generator>ResXFileCodeGenerator</Generator>
     </EmbeddedResource>
