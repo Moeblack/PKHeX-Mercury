@@ -47,8 +47,13 @@
 | 33 | fix/mercury-issue-02-full-catalog | cb62485423450e35465acf8ea92d16e64ae7201f | 3862b0e34 | Classify all V1_1 Mercury transitions through shared consumers |
 | 34 | fix/mercury-issue-02-version-gate | 87be3710a16488be692cd5fb1d95f1797441e95e | 58400cfb5 | Gate Mercury transition metadata on the actual version descriptor |
 | 35 | fix/mercury-issue-06-distribution | f6cb470fdca766f791dfdd35a04fa5edd9ae9a6b | 27323ed0a | Match fixed Mercury public distribution reference records |
+| 36 | fix/mercury-issue-06-check-roles | 50c724cff8fba2ccc4e4479f6754cadb13aa03fe | a35de94cc | fix(mercury): distinguish applicable checks from diagnostics |
 
-集成分支 pick HEAD（本次记录时）：`27323ed0a`。三十五次 cherry-pick 均已落地：冲突发生于第 7、15、23、26 次并按规则解决；其余无冲突。
+集成分支 pick HEAD（本次记录时）：`a35de94cc`。三十六次 cherry-pick 均已落地：冲突发生于第 7、15、23、26 次并按规则解决；其余无冲突。
+
+第 36 次增量（Issue 6 仍部分，不称完整游戏合法）：检查角色区分——任何 `Invalid` 优先；`Required` 的 `Unknown` 阻止通过；0 个 Required Unknown 才可通过；`rng`/`distribution` 参考恒为 `Diagnostic`，exact 配信时 ordinary fields/learning 为 `Diagnostic`；`range`/`source` 仍为 `Required`。无 ROM 仍 Unknown；真实 ROM 下 4 条 exact 配信全部适用检查 Pass。不适用辅助诊断不再算作来源未知原因；静态 gift 排除保持。验证：solution 构建 0 警告 0 错误（约 8.65 秒，日志 `artifacts/integration-build-check-roles.log`）；4 类过滤 `MercuryLegalityApplicabilityTests|MercuryDistributionReferenceTests|MercuryEncounterFieldMatchTests|MercuryMethod1Tests` 合计 **86/86 通过、0 跳过**（日志 `artifacts/integration-mercury-check-roles-tests.log`）。未跑全库/installer。
+
+当轮到齐提交：本轮批准的 `50c724cff` 已集成（→ a35de94cc）；除该提交外，本轮无其它待集成提交（此前的 33–35 均已集成）。
 
 第 35 次增量（Issue 6 仍部分，不称完整合法性）：4 条固定公开配信按内容来源 `exact-match`；BCL 解码、私有 bytes、`ToBoxBytes` exact；无 match 为 `Unknown`。仅内容来源匹配为 `Pass`，不绕过其它 `Invalid`。HOME 侧只做 PMH1/base64/58B/物种库/容量检查，无 Method1/招式来源/遭遇/EV/球 OT 蛋组合验证；静态脚本 gift 131/25/134 明确排除、不再作完成阻塞（证据保留）。验证：solution 构建 0 警告 0 错误（约 13.7 秒，日志 `artifacts/integration-build-distribution.log`）；`MercuryDistributionReferenceTests` **21/21**（无 ROM）、`MercuryEncounterFieldMatchTests` **26/26**、`MercuryMethod1Tests` **25/25**，均 0 跳过（日志 `artifacts/integration-mercury-distribution-tests.log`、`integration-mercury-fieldmatch-tests.log`、`integration-mercury-method1-tests.log`）。未跑全库、未写用户资料。
 
@@ -139,6 +144,7 @@ Issue 11 本次只完成帧/页 API：`MercurySpriteSelection(FrameIndex, Palett
 - 集成 Method1 诊断提交后构建：**已成功生成，0 警告，0 错误**（约 7.55 秒）。日志 `artifacts/integration-build-method1.log`。
 - 集成全量形态 + 版本 gate 提交后构建：**已成功生成，0 警告，0 错误**（约 7.55 秒）。日志 `artifacts/integration-build-transitions-full.log`。
 - 集成公开配信 exact-match 提交后构建：**已成功生成，0 警告，0 错误**（约 13.7 秒）。日志 `artifacts/integration-build-distribution.log`。
+- 集成检查角色区分提交后构建：**已成功生成，0 警告，0 错误**（约 8.65 秒）。日志 `artifacts/integration-build-check-roles.log`。
 
 ## Issue 3（729 号道具图像）：阻塞结论
 
