@@ -22,7 +22,17 @@
 - 仅当完整 58 字节精确命中固定公开配信时，`encounter.record-fields` 与四项 `move.*.known-learning` 为 `Diagnostic`：已发布原始内容包含招式，不额外强求同时具有普通遭遇或普通学习来源。未精确命中时它们恢复为 `Required`，来源判断本身不变。
 - 无 ROM 或 numeric 资料仍令范围检查为 `Unknown`；ROM、版本、SHA 与表形状门控均不放宽。普通遭遇无完整来源证据仍为 `Unknown`。未匹配配信不能据此判非法，也不能据此提升来源。
 
-`Show` 与 `Evaluate` 均标注 `Required 适用检查` / `Diagnostic 辅助诊断（不单独决定总结果）`；逐项 `Unknown` 和证据继续可见。`Show` 保留全部检查，`Evaluate` 保留原有非 `Pass` 报告范围。没有运行零售分析或提供完整合法绿勾；批量暂停入口不变。
+`Show` 与 `Evaluate` 均标注 `Required 适用检查` / `Diagnostic 辅助诊断（不单独决定总结果）`；逐项 `Unknown` 和证据继续可见。`Show` 保留全部检查，`Evaluate` 保留原有非 `Pass` 报告范围。没有运行零售分析或提供完整合法绿勾；水银批量入口现按下节执行同一限定检查。
+
+## 当前存档的批量已覆盖检查
+
+`MercuryBulkLegalityAnalysis.Analyze(MercurySaveFile, MercuryEncounterEvidence?)` 一次调用原生 `SlotInfoLoader.AddFromSaveFile(SaveFile, ICollection<SlotCache>)`。该 API 读取当前 native `BoxBuffer` / 活动 `PartyCount` 对应的 `PartyBuffer`，不读取尚未刷新到 Backend 的旧记录；盒全部槽位被枚举，队伍仅枚举活动槽位。只跳过 species 0，不调用零售 `BulkAnalysis.IsEmptyData` 或 `SlotCache.IsDataValid`，所以非零越界 species 不会丢失。非 `MercuryPKM` 记录产生明确的 `bulk.entity-type` 无效报告，不静默忽略。
+
+每个非空槽调用现有 `MercuryLegalityAnalysis.Analyze`，共用传入证据但分别经过已有 ROM、版本、SHA 门控。结果保留上游 `SlotCache`（包括 `Source`、`SAV`、`Entity`）和单项结果；报告位置直接使用 `SlotCache.Identify()`，不另造槽编号。没有运行零售批量 clone/trainer/PID 规则，没有新增“重复配信即非法”的规则。
+
+统计包含非空总数及 `Pass` / `Unknown` / `Invalid` 数量。任意 `Invalid` 优先；否则存在 `Unknown` 则未知；只有非空且全部单项通过才是覆盖范围 `Pass`。空存档为零项 `Unknown`，仅提示无可检查个体，绝不称“全合法”。逐槽报告保留全部 Required/Diagnostic 检查、未知状态与证据，并明确不代表完整游戏合法性。
+
+分析和报告不调用 setter、Export、Flush 或修改 `Edited`，不在统计前写回。`SAVEditor.ClickVerifyStoredEntities` 对 `MercurySaveFile` 调用 `ShowBulk`，零售分支原样保留；其他不支持零售分析的非水银存档仍走原暂停入口。非空结果使用既有 `WinFormsUtil.Prompt(YesNo)` 导出交互，只有选择 Yes 才调用 `SetClipboardText`；No 不写剪贴板。空结果只提示，不提供导出确认。没有新增 Grid、导入菜单或存档保存操作，也不自动清除 5007。
 
 ## 基础 Method1 数值相关性
 
@@ -72,3 +82,17 @@
 - 限定 `PKHeX.WinForms/PKHeX.WinForms.csproj` build 成功，**0 warning / 0 error**。未运行全库测试、格式化器或额外项目级验证，未写用户存档/profile，未纳入 ROM。
 
 日志与 TRX 位于工作树本地 `artifacts/issue-06/applicability/`（不入 Git）：`targeted-rom`、`targeted-no-rom`、`explicit-bad-path` 的 `.log/.trx` 以及 `winforms-build.log`。基线为 `5d449c152e44141ae5d4a4c61782d3664defb97a`，工作分支为 `fix/mercury-issue-06-check-roles`。
+
+### 批量增量的限定验证
+
+基线 `5b8b1798f6bdec6bb0c8f8c18306e9fb83bccb42`，独立分支 `fix/mercury-issue-06-bulk-checks`，原适用性分支保留。新增 `MercuryBulkLegalityTests` 只使用 `CreateBlank` 与内存记录，不扫描或写入真实用户存档。
+
+- 覆盖 box 0/24 与 slot 0/29 四个边界、活动队伍及非活动队伍排除、空槽跳过、非零越界 species 保留、Backend 仍旧而当前缓冲已有修改的情况，以及批量统计/每项检查与直接逐只分析完全一致。
+- 真实 ROM 覆盖公开配信 Pass、普通来源 Unknown、越界 Invalid 混合；只有配信时覆盖范围 Pass，重复相同配信不新增复制错误；Unknown 仍压低混合总状态。
+- 同一遭遇证据逐只经过门控；跨 SHA 拒绝、无证据后不串前次结果、再传正确证据恢复字段匹配。跨版本使用仅供拒绝的合成 1.0 状态，不冒充已验证真实 1.0 ROM。
+- 每次分析及报告前后比较完整 box/party 缓冲、内部快照、Backend 原始输入字节、PartyCount、Backend dirty 与 `State.Edited`；覆盖 Edited 原为 true/false，并额外比较构造器的外部输入数组不变。测试用反射只读不可公开的缓冲，以便断言完整字节而不触发 Export。
+- 显式使用上文同一路径的水银 1.1 ROM，固定 SDK、`-m:1`，只过滤本批量类和既有四个单只类：最终 **95 pass / 0 fail / 0 skip**（批量 9，单只回归 86）。初跑相同 95 项通过，有一条 xUnit2031 测试断言写法警告；改用 `Assert.Single` 谓词重载后重跑通过且该警告消失，没有改预期。
+- 未配置 ROM、仅本批量类：**5 pass / 0 fail / 4 skip**。限定 WinForms build：**0 warning / 0 error**。
+- UI 只验证 Core 逐槽格式化输出与 WinForms 编译；**未声称实际点击或剪贴板交互实测**。不运行全库测试、格式化器或零售批量规则。
+
+本轮日志位于工作树本地 `artifacts/issue-06/bulk/`（不入 Git）：`bulk-and-individual-rom.log/.trx`、`bulk-no-rom.log/.trx`、`winforms-build.log`、`validation.json`；初次含断言警告的日志另保留为 `bulk-and-individual-rom-initial.log/.trx`。静态游戏脚本 gift 仍完全排除在本轮范围外。

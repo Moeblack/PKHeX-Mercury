@@ -8,6 +8,7 @@ using System.Threading.Tasks;
 using System.Windows.Forms;
 using PKHeX.Core;
 using PKHeX.Drawing;
+using PKHeX.Mercury.Core;
 using static PKHeX.Core.MessageStrings;
 
 namespace PKHeX.WinForms.Controls;
@@ -971,6 +972,11 @@ public partial class SAVEditor : UserControl, ISlotViewer<PictureBox>, ISaveFile
 
     private void ClickVerifyStoredEntities(object sender, EventArgs e)
     {
+        if (SAV is MercurySaveFile mercury)
+        {
+            MercuryLegality.ShowBulk(this, mercury);
+            return;
+        }
         if (!SAV.BlankPKM.SupportsRetailLegality)
         {
             MercuryLegality.ShowPaused(this);

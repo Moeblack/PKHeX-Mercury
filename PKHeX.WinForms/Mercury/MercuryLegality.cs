@@ -52,6 +52,31 @@ internal static class MercuryLegality
         _ => "Unknown（未知）",
     };
 
+    public static void ShowBulk(IWin32Window owner, MercurySaveFile save)
+    {
+        var result = MercuryBulkLegalityAnalysis.Analyze(save, MercuryEncounterContext.TryGet(save.GameData));
+        if (result.Count == 0)
+        {
+            TaskDialog.ShowDialog(owner, new TaskDialogPage
+            {
+                Caption = "Mercury",
+                Heading = "水银批量已覆盖检查",
+                Text = result.Summary,
+                Buttons = [TaskDialogButton.OK],
+                DefaultButton = TaskDialogButton.OK,
+                AllowCancel = true,
+            });
+            return;
+        }
+
+        if (WinFormsUtil.Prompt(MessageBoxButtons.YesNo, result.Summary,
+                "是否将逐槽完整检查报告复制到剪贴板？辅助诊断Unknown仍逐项保留；未运行零售批量规则。") != DialogResult.Yes)
+            return;
+
+        WinFormsUtil.SetClipboardText(result.Report());
+        WinFormsUtil.Asterisk();
+    }
+
     public static void ShowPaused(IWin32Window owner)
     {
         TaskDialog.ShowDialog(owner, new TaskDialogPage
