@@ -30,8 +30,14 @@
 | 16 | fix/mercury-issue-06-legality | dc39b75d6 | 8cadd55be | Add Mercury encounter evidence parsing and unknown candidate matching |
 | 17 | fix/mercury-issue-06-legality | aea37dcbd | 6053ea852 | Wire Mercury encounter evidence import into native legality reports |
 | 18 | fix/mercury-issue-11-forms | 2f91811ba | 11d4a5187 | Allow explicit Mercury runtime resource selection in sprite preview |
+| 19 | fix/mercury-issue-09-host | d6ab8daf99e21bec6ba9fd9dec5a4aa3e0c5180d | 29e7777f3 | Authorize Mercury host editing and checks by verified ROM version |
+| 20 | fix/mercury-issue-07-identifiers | 216f979d27b05561f31c96aacee1c3c005e88272 | a3fd4484c | Expose Mercury identifier observations without rewriting stored IDs |
 
-集成分支 HEAD（本次记录时）：`11d4a5187`。十八次 cherry-pick 均已落地（第 7、15 次冲突已按 Main 规则解决；第 17、18 次语言文件为纯新增、键集合不重叠，自动合并）。
+集成分支 HEAD（本次记录时）：`a3fd4484c`。二十次 cherry-pick 均已落地（第 7、15、20 次冲突按规则解决）。
+
+第 20 次冲突解决：`PKMEditor.SetPKMFormatMode` 中 `ConfigureMercuryTypes(pk)`（Issue 8）与 `SetMercuryIdentifierTipFormat(pk)`（Issue 7）为相互独立的调用行，保留两者、不删任一侧；`InitializeMercuryIdentifierTips()`（构造）与 `RefreshMercuryIdentifierTips()`（`LoadFieldsFromPKM` 完成时）自动合入，未替换既有事件；未定义永久 Form setter。
+
+Issue 9 已支持精确 v1.0/v1.1 并按各版本实际数据读取（160 限定 checks + 6 语言 checks 通过）；但存档布局本身无法唯一辨版本，1.1 遭遇证据不套 1.0，未游戏实测。Issue 7 已证来源备注（读 3 写 4）、球 27 运行态、5E 动态名与 ToolTip，无损保存；不标未知机制全部闭合。均未发布。
 
 Issue 6：已能手动导入真实遭遇 JSON 并显示普通候选及独立动态摘要（`MercuryEncounterEvidence*.cs`、`MercuryEncounterMatcher.cs`、`MercuryEncounterContext.cs`）；不宣称完整获取合法性。Issue 11：新增 338 `null`/`false`/`true` 运行态只读预览，不写存档、不冒充从存档得知状态。二者均未发布。
 
@@ -88,6 +94,7 @@ Issue 11 本次只完成帧/页 API：`MercurySpriteSelection(FrameIndex, Palett
 - 集成 Issue 5 提交后构建（覆盖 Issue 5 合并）：**已成功生成，0 警告，0 错误**（约 7.13 秒）。构建日志保存在本机 `artifacts/integration-build-issue5.log`。
 - 集成 Issue 2 + Issue 11 提交后构建（覆盖前次 Issue 2 与本次 Issue 11）：**已成功生成，0 警告，0 错误**（约 7.35 秒）。构建日志保存在本机 `artifacts/integration-build-issue2-11.log`。
 - 集成 Issue 6 两次 + Issue 11 运行态提交后构建：**已成功生成，0 警告，0 错误**（约 10.84 秒）。构建日志保存在本机 `artifacts/integration-build-issue6-11b.log`。
+- 集成 host gate 与 Issue 7 identifier 提交后构建：**已成功生成，0 警告，0 错误**（约 7.07 秒）。构建日志保存在本机 `artifacts/integration-build-gate-ident.log`。
 
 ## Issue 3（729 号道具图像）：阻塞结论
 
