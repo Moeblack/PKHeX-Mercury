@@ -41,8 +41,14 @@
 | 27 | fix/mercury-issue-05-pack-runtime | d7702cbac5f3cb25376ac158aa0108f12dc6dde3 | 6f0a22a95 | feat(mercury): install local default packs with backup rollback |
 | 28 | fix/mercury-issue-06-shared-learnset | 786732724a7c47828df68b31e237023032677aaa | ec1836d90 | Cache shared native learnsets for Mercury species snapshots |
 | 29 | fix/mercury-issue-06-fieldmatch | 4b5b8f1036120b48b9408faea3d4a30e13d4ee79 | 3c625819e | Separate Mercury encounter field matches from source coverage |
+| 30 | fix/mercury-issue-02-directory | d720625b12922b05245ab773deb4a01457209e8e | f8628e63e | Expand proven Mercury transitions and clarify temporary species writes |
+| 31 | fix/mercury-issue-11-pid | 0e978ab43 | 0e5b48cef | Apply verified Mercury PID spots to indexed entity sprite buffers |
 
-集成分支 pick HEAD（本次记录时）：`3c625819e`。二十九次 cherry-pick 均已落地：冲突发生于第 7、15、23、26 次并按规则解决；其余无冲突或仅语言文件纯新增自动合并。
+集成分支 pick HEAD（本次记录时）：`0e5b48cef`。三十一次 cherry-pick 均已落地：冲突发生于第 7、15、23、26 次并按规则解决；其余无冲突。
+
+Issue 2（暂不结项）：已证目录 16 条关系并修正临时恢复写入，未知分类保留。Issue 11 已完成（按“编辑器正面图资源/当前实体预览”标准）：完整帧/页、338 null/false/true、PID 0/1/3/4 实体路径均覆盖；明确不复刻战斗动画、不提供背面查看器、未知动画选择不瞎自动配对（非新增任务）。`TryGetFront` 原始语义保留。
+
+验证：solution 构建 0 警告 0 错误（约 9.33 秒，日志 `artifacts/integration-build-issue2dir-issue11pid.log`）；过滤 `MercurySpeciesTransitionTests|MercuryPidSpotsTests`：合计 51/51，其中 **MercurySpeciesTransitionTests 35/35、MercuryPidSpotsTests 16/16**，0 跳过（日志 `artifacts/integration-mercury-issue2dir-issue11pid-tests.log`）。环境：`MERCURY_TEST_ROM`=v1.1、`MERCURY_TEST_ROM_V10`=`Z:\来自：百度网盘\...\Version 1.0.gba`、`MERCURY_TEST_PACK`=local-verified-1。未跑全库、未重跑 installer、未重导出包。
 
 第 29 次增量说明（Issue 6 仍部分）：字段匹配仅对已接受资料的普通三字段命中判 `Pass`，`source` 仍为 `Unknown`、聚合仍为 `Unknown`；新增 `docs/mercury-encounter-field-matching.md` 仅记本增量范围，**不是 gift 完整规则**；gift 131/25/134 尚未导入。验证：solution 构建 0 警告 0 错误；`MercuryEncounterFieldMatchTests` **26/26 通过、0 跳过**（`MERCURY_TEST_ROM` 设为已知 v1.1）。未跑全库、未重跑 installer。
 
@@ -117,6 +123,7 @@ Issue 11 本次只完成帧/页 API：`MercurySpriteSelection(FrameIndex, Palett
 - 集成 pack 四提交后构建：**已成功生成，0 警告，0 错误**（约 7.59 秒）。构建日志保存在本机 `artifacts/integration-build-pack4.log`。
 - 集成共享学习表提交后构建：**已成功生成，0 警告，0 错误**（约 6.88 秒）。日志 `artifacts/integration-build-shared-learnset.log`。
 - 集成字段匹配提交后构建：**已成功生成，0 警告，0 错误**（约 7.43 秒）。日志 `artifacts/integration-build-field-match.log`。
+- 集成 Issue 2 目录 16 关系 + Issue 11 PID spots 提交后构建：**已成功生成，0 警告，0 错误**（约 9.33 秒）。日志 `artifacts/integration-build-issue2dir-issue11pid.log`。
 
 ## Issue 3（729 号道具图像）：阻塞结论
 
