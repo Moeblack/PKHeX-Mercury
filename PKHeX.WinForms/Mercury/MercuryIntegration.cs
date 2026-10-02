@@ -25,6 +25,7 @@ internal static class MercuryIntegration
     private static MercuryGameData? _data;
     private static MercurySaveReader? _reader;
     private static MercuryGameStringsFactory? _factory;
+    private static bool _defaultPackErrorShown;
 
     /// <summary>
     /// Raised after the profile/data has been replaced. The host reopens the active Mercury save (if any)
@@ -36,6 +37,10 @@ internal static class MercuryIntegration
     public static string ProfileDirectory => Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
         "PKHeX-Mercury", "profile");
+
+    public static string DataPackDirectory => Path.Combine(
+        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+        "PKHeX-Mercury", "data-pack");
 
     public static MercuryGameData? Data => _data;
 
@@ -79,19 +84,17 @@ internal static class MercuryIntegration
 
     private static void TryLoadDefaultProfile()
     {
-        try
-        {
-            if (!Directory.Exists(ProfileDirectory))
-                return;
-            var data = MercuryGameData.LoadProfile(ProfileDirectory);
-            if (data.Species.Count == 0)
-                return;
-            SetData(data);
-        }
-        catch
-        {
-            // A broken/absent profile must not prevent the retail editor from starting.
-        }
+        var result = MercuryDefaultDataLoader.Load(DataPackDirectory, ProfileDirectory);
+        if (result.Data is not null)
+            SetData(result.Data);
+        if (result.PackError is null || _defaultPackErrorShown)
+            return;
+        _defaultPackErrorShown = true;
+        string fallback = result.Data is not null
+            ? L("DefaultPackFallback", "The previous profile was loaded instead.")
+            : L("DefaultPackUnavailable", "No fallback profile could be loaded; Mercury data is unavailable.");
+        Exception error = result.ProfileError is null ? result.PackError : new AggregateException(result.PackError, result.ProfileError);
+        WinFormsUtil.Error(L("DefaultPackFailed", "The default data pack could not be loaded."), fallback, error.Message);
     }
 
     private static void SetData(MercuryGameData data)
@@ -133,6 +136,8 @@ internal static class MercuryIntegration
         root.DropDownItems.Add(encounterEvidence);
         root.DropDownOpening += (_, _) => encounterEvidence.Text = L("EncounterEvidence.Menu", "Import encounter evidence (JSON)...");
         AddItem(root, "Menu_MercuryLoadProfile", "Load existing profile folder...", (s, _) => LoadProfileFolder(Owner(s)));
+        AddItem(root, "Menu_MercuryInstallPack", "Install data pack as default...",
+            async (s, _) => await MercuryDataPackSetup.InstallAsync(Owner(s), s as ToolStripMenuItem, DataPackDirectory, Publish));
         tools.DropDownItems.Add(root);
     }
 
